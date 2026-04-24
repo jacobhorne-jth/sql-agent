@@ -1,0 +1,386 @@
+CREATE TABLE "artifactscore" (
+artregistry character NOT NULL,
+artname character varying NOT NULL,
+artdynasty character varying NULL,
+artageyears integer NULL,
+mattype USER-DEFINED NULL,
+conservestatus USER-DEFINED NULL,
+    PRIMARY KEY (artregistry)
+);
+
+First 3 rows:
+artregistry    artname           artdynasty      artageyears  mattype    conservestatus
+-------------  ----------------  ------------  -------------  ---------  ----------------
+ART54317       Culture Painting  Ming                    943  Stone      Good
+ART54254       Poor Vase         Song                   2179  Textile    Fair
+ART69978       Order Painting    Qing                    366  Bronze     Poor
+...
+
+
+CREATE TABLE "surfaceandphysicalreadings" (
+surfphysregistry bigint NOT NULL DEFAULT nextval('surfaceandphysicalreadings_surfphysregistry_seq'::regclass),
+envreadref bigint NOT NULL,
+vibralvlmms2 real NULL,
+noisedb smallint NULL,
+dustaccummgm2 numeric NULL,
+microbialcountcfu integer NULL,
+moldriskidx numeric NULL,
+pestactivitylvl character varying NULL,
+pesttrapcount smallint NULL,
+pestspeciesdetected text NULL,
+surfaceph numeric NULL,
+matmoistcontent numeric NULL,
+saltcrystalrisk character NULL,
+metalcorroderate numeric NULL,
+organicdegradidx numeric NULL,
+colorchangedeltae real NULL,
+surfacetempc numeric NULL,
+surfacerh numeric NULL,
+condenserisk character varying NULL,
+thermalimgstatus character NULL,
+structstability character varying NULL,
+crackmonitor text NULL,
+deformmm numeric NULL,
+wtchangepct numeric NULL,
+surfdustcoverage smallint NULL,
+o2concentration numeric NULL,
+n2concentration numeric NULL,
+    PRIMARY KEY (surfphysregistry),
+    FOREIGN KEY (envreadref) REFERENCES environmentalreadingscore(envreadregistry)
+);
+
+First 3 rows:
+  surfphysregistry    envreadref    vibralvlmms2    noisedb    dustaccummgm2    microbialcountcfu    moldriskidx  pestactivitylvl      pesttrapcount  pestspeciesdetected      surfaceph    matmoistcontent  saltcrystalrisk      metalcorroderate    organicdegradidx    colorchangedeltae    surfacetempc    surfacerh  condenserisk    thermalimgstatus    structstability    crackmonitor           deformmm    wtchangepct    surfdustcoverage    o2concentration    n2concentration
+------------------  ------------  --------------  ---------  ---------------  -------------------  -------------  -----------------  ---------------  ---------------------  -----------  -----------------  -----------------  ------------------  ------------------  -------------------  --------------  -----------  --------------  ------------------  -----------------  -------------------  ----------  -------------  ------------------  -----------------  -----------------
+                 1             1           0.461         47             1.74                  234           0.1   Medium                          10                                 6.7               10.3  High                             0.04                0.47                 1.99           19.11         45.5  Medium          Normal              Stable             Significant Changes        0.08         -0.001                   5              20.8               78.75
+                 2             2           0.053         50             0.39                  450           0.33  Low                              6                                 6.5               11    High                             0.05                0.37                 0.87           20.09         53                    Critical            Stable             Significant Changes        0.07         -0.011                   4              20.53              78.3
+                 3             3           0.018         42             2.77                  486           0.43  Low                              7  Beetles                        6.6               10.1  Low                              0.02                0.92                 1.48           20.53         54.8                  Critical            Stable             Minor Changes              0.16         -0.099                   3              20.31              78.62
+...
+
+
+CREATE TABLE "usagerecords" (
+usagerecordregistry bigint NOT NULL DEFAULT nextval('usagerecords_usagerecordregistry_seq'::regclass),
+artrefused character NOT NULL,
+showcaserefused character NULL,
+sensdatalink bigint NULL,
+displayrotatesched character NULL,
+displaydurmonths smallint NULL,
+restperiodmonths smallint NULL,
+displayreqs character varying NULL,
+storagereqs character varying NULL,
+handlingreqs character varying NULL,
+transportreqs text NULL,
+packingreqs character varying NULL,
+resaccessfreq character NULL,
+publicdispfreq character NULL,
+loanfreq character NULL,
+handlefreq character NULL,
+docufreq character varying NULL,
+monitorfreq character varying NULL,
+assessfreq character NULL,
+maintfreq character NULL,
+inspectfreq character NULL,
+calibfreq character NULL,
+certstatus character varying NULL,
+compliancestatus character varying NULL,
+auditstatus USER-DEFINED NULL,
+qualityctrlstatus USER-DEFINED NULL,
+    PRIMARY KEY (usagerecordregistry),
+    FOREIGN KEY (artrefused) REFERENCES artifactscore(artregistry),
+    FOREIGN KEY (sensdatalink) REFERENCES sensitivitydata(sensitivityregistry),
+    FOREIGN KEY (showcaserefused) REFERENCES showcases(showcasereg)
+);
+
+First 3 rows:
+  usagerecordregistry  artrefused    showcaserefused      sensdatalink  displayrotatesched      displaydurmonths    restperiodmonths  displayreqs    storagereqs    handlingreqs    transportreqs    packingreqs    resaccessfreq    publicdispfreq    loanfreq    handlefreq    docufreq    monitorfreq    assessfreq    maintfreq    inspectfreq    calibfreq    certstatus    compliancestatus    auditstatus    qualityctrlstatus
+---------------------  ------------  -----------------  --------------  --------------------  ------------------  ------------------  -------------  -------------  --------------  ---------------  -------------  ---------------  ----------------  ----------  ------------  ----------  -------------  ------------  -----------  -------------  -----------  ------------  ------------------  -------------  -------------------
+                    1  ART54317      SC9857                          1  Permanent                              1                  22  Special        Standard       Custom          Custom           Custom         Frequent         Frequent          Occasional  Rare          Frequent    Monthly        Monthly       Monthly      Weekly         Monthly      Expired       Non-compliant       Passed         Failed
+                    2  ART54254      SC7393                          2  Resting                                5                  11  Standard       Custom         Special         Special          Special        Rare             Frequent          Frequent    Rare          Rare        Daily          Quarterly     Weekly       Monthly        Quarterly    Current       Partial             Pending        Failed
+                    3  ART69978      SC9391                          3  Permanent                              6                  10  Custom         Custom         Standard        Standard         Special        Rare             Occasional        Occasional  Rare          Frequent    Weekly         Quarterly     Weekly       Daily          Monthly      Pending       Non-compliant       Failed         Passed
+...
+
+
+CREATE TABLE "artifactratings" (
+ratingrecordregistry bigint NOT NULL DEFAULT nextval('artifactratings_ratingrecordregistry_seq'::regclass),
+artref character NOT NULL,
+histsignrating smallint NULL,
+researchvalrating integer NULL,
+exhibitvalrating integer NULL,
+cultscore smallint NULL,
+publicaccessrating smallint NULL,
+eduvaluerating bigint NULL,
+conservediff USER-DEFINED NULL,
+treatcomplexity character NULL,
+matstability character varying NULL,
+deteriorrate text NULL,
+    PRIMARY KEY (ratingrecordregistry),
+    FOREIGN KEY (artref) REFERENCES artifactscore(artregistry)
+);
+
+First 3 rows:
+  ratingrecordregistry  artref      histsignrating    researchvalrating    exhibitvalrating    cultscore    publicaccessrating    eduvaluerating  conservediff    treatcomplexity    matstability    deteriorrate
+----------------------  --------  ----------------  -------------------  ------------------  -----------  --------------------  ----------------  --------------  -----------------  --------------  --------------
+                     1  ART54317                 7                    9                   4           25                     9                 9  Medium          Complex            Unstable        Moderate
+                     2  ART54254                 3                    5                   7           13                     1                 3  High            Moderate           Stable          Rapid
+                     3  ART69978                 5                   10                   4            4                     7                 3  High            Moderate           Moderate        Rapid
+...
+
+
+CREATE TABLE "lightandradiationreadings" (
+lightradregistry bigint NOT NULL DEFAULT nextval('lightandradiationreadings_lightradregistry_seq'::regclass),
+envreadref bigint NOT NULL,
+lightlux integer NULL,
+uvuwcm2 numeric NULL,
+irwm2 numeric NULL,
+visibleexplxh integer NULL,
+    PRIMARY KEY (lightradregistry),
+    FOREIGN KEY (envreadref) REFERENCES environmentalreadingscore(envreadregistry)
+);
+
+First 3 rows:
+  lightradregistry    envreadref    lightlux    uvuwcm2    irwm2    visibleexplxh
+------------------  ------------  ----------  ---------  -------  ---------------
+                 1             1          91      32.58     7.51            71166
+                 2             2         138      64.99     7.81            69438
+                 3             3          71      66.82     5.47            75541
+...
+
+
+CREATE TABLE "artifactsecurityaccess" (
+secrecordregistry bigint NOT NULL DEFAULT nextval('artifactsecurityaccess_secrecordregistry_seq'::regclass),
+artref character NOT NULL,
+ratingref bigint NULL,
+loanstatus character NULL,
+insvalueusd numeric NULL,
+seclevel character varying NULL,
+accessrestrictions text NULL,
+docustatus character varying NULL,
+photodocu character varying NULL,
+condreportstatus character varying NULL,
+conserverecstatus character NULL,
+researchaccessstatus character varying NULL,
+digitalrecstatus text NULL,
+    PRIMARY KEY (secrecordregistry),
+    FOREIGN KEY (artref) REFERENCES artifactscore(artregistry),
+    FOREIGN KEY (ratingref) REFERENCES artifactratings(ratingrecordregistry)
+);
+
+First 3 rows:
+  secrecordregistry  artref      ratingref  loanstatus      insvalueusd  seclevel    accessrestrictions    docustatus    photodocu    condreportstatus    conserverecstatus    researchaccessstatus    digitalrecstatus
+-------------------  --------  -----------  ------------  -------------  ----------  --------------------  ------------  -----------  ------------------  -------------------  ----------------------  ------------------
+                  1  ART54317            1  On Loan              968368  Level 3     Public                Updating      Outdated     Current             Review Required      Limited                 In Progress
+                  2  ART54254            2  Available             36135  Level 3     Public                Partial       Required     Due                 Pending              Limited                 Partial
+                  3  ART69978            3  On Loan              330049  Level 2     Restricted            Partial       Required     Current             Review Required      Limited                 Partial
+...
+
+
+CREATE TABLE "sensitivitydata" (
+sensitivityregistry bigint NOT NULL DEFAULT nextval('sensitivitydata_sensitivityregistry_seq'::regclass),
+artref character NOT NULL,
+envsensitivity character NULL,
+lightsensitivity character varying NULL,
+tempsensitivity character varying NULL,
+humiditysensitivity text NULL,
+vibrasensitivity character NULL,
+pollutantsensitivity character varying NULL,
+pestsensitivity text NULL,
+handlesensitivity character NULL,
+transportsensitivity character varying NULL,
+displaysensitivity character varying NULL,
+storagesensitivity text NULL,
+    PRIMARY KEY (sensitivityregistry),
+    FOREIGN KEY (artref) REFERENCES artifactscore(artregistry)
+);
+
+First 3 rows:
+  sensitivityregistry  artref    envsensitivity    lightsensitivity    tempsensitivity    humiditysensitivity    vibrasensitivity    pollutantsensitivity    pestsensitivity    handlesensitivity    transportsensitivity    displaysensitivity    storagesensitivity
+---------------------  --------  ----------------  ------------------  -----------------  ---------------------  ------------------  ----------------------  -----------------  -------------------  ----------------------  --------------------  --------------------
+                    1  ART54317  Low               High                High               Medium                 Medium              High                    High               Medium               High                    Low                   Medium
+                    2  ART54254  High              Low                 Low                High                   High                Medium                  Low                Medium               High                    Low                   Low
+                    3  ART69978  High              High                Medium             Low                    Low                 High                    High               Low                  Low                     High                  Medium
+...
+
+
+CREATE TABLE "conditionassessments" (
+conditionassessregistry bigint NOT NULL DEFAULT nextval('conditionassessments_conditionassessregistry_seq'::regclass),
+artrefexamined text NOT NULL,
+showcaserefexamined text NULL,
+lightreadrefobserved bigint NULL,
+condassessscore integer NULL,
+conserveassessdate date NULL,
+nextassessdue date NULL,
+    PRIMARY KEY (conditionassessregistry),
+    FOREIGN KEY (artrefexamined) REFERENCES artifactscore(artregistry),
+    FOREIGN KEY (lightreadrefobserved) REFERENCES lightandradiationreadings(lightradregistry),
+    FOREIGN KEY (showcaserefexamined) REFERENCES showcases(showcasereg)
+);
+
+First 3 rows:
+  conditionassessregistry  artrefexamined    showcaserefexamined      lightreadrefobserved    condassessscore  conserveassessdate    nextassessdue
+-------------------------  ----------------  ---------------------  ----------------------  -----------------  --------------------  ---------------
+                        1  ART54317          SC9857                                      1                 93  2024-09-15            2025-04-17
+                        2  ART54254          SC7393                                      2                 48  2024-03-27            2025-09-09
+                        3  ART69978          SC9391                                      3                 61  2024-05-01            2025-11-10
+...
+
+
+CREATE TABLE "exhibitionhalls" (
+hallrecord character NOT NULL,
+cctvcoverage character varying NULL,
+motiondetectstatus character varying NULL,
+alarmsysstatus character NULL,
+accessctrlstatus character varying NULL,
+visitorcountdaily integer NULL,
+visitorflowrate USER-DEFINED NULL,
+visitordwellmin smallint NULL,
+visitorbehaviornotes text NULL,
+    PRIMARY KEY (hallrecord),
+    FOREIGN KEY (hallrecord) REFERENCES artifactscore(artregistry)
+);
+
+First 3 rows:
+hallrecord    cctvcoverage    motiondetectstatus    alarmsysstatus    accessctrlstatus      visitorcountdaily  visitorflowrate      visitordwellmin  visitorbehaviornotes
+------------  --------------  --------------------  ----------------  ------------------  -------------------  -----------------  -----------------  ----------------------
+ART54317      Partial         Active                Armed             Maintenance                         308  Low                               16  Poor
+ART54254      Full            Maintenance           Armed             Active                              993  Low                               11  Poor
+ART69978      Limited         Partial               Maintenance       Partial                              19  Medium                            20  Good
+...
+
+
+CREATE TABLE "riskassessments" (
+riskassessregistry bigint NOT NULL DEFAULT nextval('riskassessments_riskassessregistry_seq'::regclass),
+artrefconcerned character NOT NULL,
+hallrefconcerned character NULL,
+riskassesslevel USER-DEFINED NULL,
+emergresponseplan text NULL,
+evacpriority character varying NULL,
+handlerestrictions character varying NULL,
+conservepriorityscore smallint NULL,
+    PRIMARY KEY (riskassessregistry),
+    FOREIGN KEY (artrefconcerned) REFERENCES artifactscore(artregistry),
+    FOREIGN KEY (hallrefconcerned) REFERENCES exhibitionhalls(hallrecord)
+);
+
+First 3 rows:
+  riskassessregistry  artrefconcerned    hallrefconcerned    riskassesslevel    emergresponseplan    evacpriority    handlerestrictions      conservepriorityscore
+--------------------  -----------------  ------------------  -----------------  -------------------  --------------  --------------------  -----------------------
+                   1  ART54317           ART54317            Medium             Review Required      Priority 3      Minimal                                    85
+                   2  ART54254           ART54254            Medium             Under Revision       Priority 1      Strict                                     76
+                   3  ART69978           ART69978            Medium             Updated              Priority 2      Minimal                                    91
+...
+
+
+CREATE TABLE "showcases" (
+showcasereg character NOT NULL,
+hallref character NULL,
+airtightness real NULL,
+showcasematerial character varying NULL,
+sealcondition character varying NULL,
+maintstatus character NULL,
+filterstatus text NULL,
+silicagelstatus character NULL,
+silicagelchangedate date NULL,
+humiditybuffercap smallint NULL,
+pollutantabsorbcap numeric NULL,
+leakrate real NULL,
+pressurepa bigint NULL,
+inertgassysstatus character varying NULL,
+firesuppresssys character varying NULL,
+empowerstatus character NULL,
+backupsysstatus text NULL,
+    PRIMARY KEY (showcasereg),
+    FOREIGN KEY (hallref) REFERENCES exhibitionhalls(hallrecord)
+);
+
+First 3 rows:
+showcasereg    hallref      airtightness  showcasematerial    sealcondition    maintstatus    filterstatus    silicagelstatus    silicagelchangedate      humiditybuffercap    pollutantabsorbcap    leakrate    pressurepa  inertgassysstatus    firesuppresssys    empowerstatus    backupsysstatus
+-------------  ---------  --------------  ------------------  ---------------  -------------  --------------  -----------------  ---------------------  -------------------  --------------------  ----------  ------------  -------------------  -----------------  ---------------  -----------------
+SC9857         ART54317             95.1  Tempered Glass      Poor             Overdue        Replace Now     Active             2024-09-15                              81                  71.7        0.41            -2  Active               Maintenance        Testing          Ready
+SC7393         ART54254             93    Tempered Glass      Excellent        Overdue        Replace Now     Active             2024-12-15                              78                  79.8        0.07             3  Standby              Active             Active           Maintenance
+SC9391         ART69978             99.4  Glass               Good             Due            Replace Soon    Replace Soon       2024-12-21                              92                  66.3        0.2             -3  Active               Active             Active           Testing
+...
+
+
+CREATE TABLE "conservationandmaintenance" (
+conservemaintregistry bigint NOT NULL DEFAULT nextval('conservationandmaintenance_conservemaintregistry_seq'::regclass),
+artrefmaintained character NOT NULL,
+hallrefmaintained character NULL,
+surfreadrefobserved bigint NULL,
+conservetreatstatus character varying NULL,
+treatpriority character NULL,
+lastcleaningdate date NULL,
+nextcleaningdue date NULL,
+cleanintervaldays smallint NULL,
+maintlog text NULL,
+incidentreportstatus character varying NULL,
+emergencydrillstatus character NULL,
+stafftrainstatus character NULL,
+budgetallocstatus character varying NULL,
+maintbudgetstatus character NULL,
+conservefreq USER-DEFINED NULL,
+intervhistory text NULL,
+prevtreatments smallint NULL,
+treateffectiveness character varying NULL,
+reversibilitypotential USER-DEFINED NULL,
+    PRIMARY KEY (conservemaintregistry),
+    FOREIGN KEY (artrefmaintained) REFERENCES artifactscore(artregistry),
+    FOREIGN KEY (hallrefmaintained) REFERENCES exhibitionhalls(hallrecord),
+    FOREIGN KEY (surfreadrefobserved) REFERENCES surfaceandphysicalreadings(surfphysregistry)
+);
+
+First 3 rows:
+  conservemaintregistry  artrefmaintained    hallrefmaintained      surfreadrefobserved  conservetreatstatus    treatpriority    lastcleaningdate    nextcleaningdue      cleanintervaldays  maintlog    incidentreportstatus    emergencydrillstatus    stafftrainstatus    budgetallocstatus    maintbudgetstatus    conservefreq    intervhistory      prevtreatments  treateffectiveness    reversibilitypotential
+-----------------------  ------------------  -------------------  ---------------------  ---------------------  ---------------  ------------------  -----------------  -------------------  ----------  ----------------------  ----------------------  ------------------  -------------------  -------------------  --------------  ---------------  ----------------  --------------------  ------------------------
+                      1  ART54317            ART54317                                 1  In Progress            High             2024-12-16          2025-05-10                          83  Updated     Closed                  Current                 Current             Review Required      Limited              Rare            Extensive                       4  Low                   Medium
+                      2  ART54254            ART54254                                 2  In Progress            Medium           2024-12-13          2025-03-26                          27  Updated                             Overdue                 Overdue             Review Required      Depleted             Rare            Minimal                         1  Low                   High
+                      3  ART69978            ART69978                                 3  Not Required           Low              2024-11-21          2025-05-14                          85  Pending     Closed                  Overdue                 Overdue             Insufficient         Limited              Rare            Moderate                        8  Low                   Low
+...
+
+
+CREATE TABLE "environmentalreadingscore" (
+envreadregistry bigint NOT NULL DEFAULT nextval('environmentalreadingscore_envreadregistry_seq'::regclass),
+monitorcode character NOT NULL,
+readtimestamp timestamp without time zone NOT NULL,
+showcaseref character NULL,
+tempc smallint NULL,
+tempvar24h real NULL,
+relhumidity integer NULL,
+humvar24h smallint NULL,
+airpresshpa real NULL,
+    PRIMARY KEY (envreadregistry),
+    FOREIGN KEY (showcaseref) REFERENCES showcases(showcasereg)
+);
+
+First 3 rows:
+  envreadregistry  monitorcode    readtimestamp               showcaseref      tempc    tempvar24h    relhumidity    humvar24h    airpresshpa
+-----------------  -------------  --------------------------  -------------  -------  ------------  -------------  -----------  -------------
+                1  MM191823       2024-08-06 08:38:48.050280  SC9857              21          0.85             53            2         1020
+                2  MM153427       2025-02-07 03:00:17.050280  SC7393              18          1.34             54            1         1013.4
+                3  MM675303       2024-07-25 09:37:21.050280  SC9391              21          1.75             47            1         1015.3
+...
+
+
+CREATE TABLE "airqualityreadings" (
+aqrecordregistry bigint NOT NULL DEFAULT nextval('airqualityreadings_aqrecordregistry_seq'::regclass),
+envreadref bigint NOT NULL,
+co2ppm smallint NULL,
+tvocppb integer NULL,
+ozoneppb integer NULL,
+so2ppb smallint NULL,
+no2ppb bigint NULL,
+pm25conc real NULL,
+pm10conc numeric NULL,
+hchoconc numeric NULL,
+airexrate numeric NULL,
+airvelms numeric NULL,
+    PRIMARY KEY (aqrecordregistry),
+    FOREIGN KEY (envreadref) REFERENCES environmentalreadingscore(envreadregistry)
+);
+
+First 3 rows:
+  aqrecordregistry    envreadref    co2ppm    tvocppb    ozoneppb    so2ppb    no2ppb    pm25conc    pm10conc    hchoconc    airexrate    airvelms
+------------------  ------------  --------  ---------  ----------  --------  --------  ----------  ----------  ----------  -----------  ----------
+                 1             1       794         89          11        12        27        16.7        34.1       0.014          6.4        0.18
+                 2             2       539        420          12        18        21        10.7        16.4       0.035          4.3        0.19
+                 3             3       402        393          47        14        13         5.4        29         0.077          5.9        0.14
+...

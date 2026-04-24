@@ -1,0 +1,263 @@
+CREATE TABLE "markets" (
+mktregistry character varying NOT NULL,
+mktdenom character varying NULL,
+mktclass USER-DEFINED NULL,
+mktspan integer NULL,
+sizecluster USER-DEFINED NULL,
+dlyflow bigint NULL,
+mthactive bigint NULL,
+vendcount integer NULL,
+buycount integer NULL,
+listtotal bigint NULL,
+interscore numeric NULL,
+esccomprate numeric NULL,
+market_status_reputation jsonb NULL,
+    PRIMARY KEY (mktregistry)
+);
+
+First 3 rows:
+mktregistry    mktdenom    mktclass      mktspan  sizecluster      dlyflow    mthactive    vendcount    buycount    listtotal    interscore    esccomprate  market_status_reputation
+-------------  ----------  ----------  ---------  -------------  ---------  -----------  -----------  ----------  -----------  ------------  -------------  --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+MKT_SOB5D      Market_84   Forum             168  Large               5388        38982          232       73577        34839          76.3           12.8  {'status': 'Under Investigation', 'trust_level': 'High', 'reputation_score': 91.1, 'compliance_metrics': {'penalty_count': 1, 'warning_count': 6, 'rule_break_count': 10, 'restriction_level': 'Partial'}, 'community_trust_score': 35.8, 'dispute_resolution_score': 3.4}
+MKT_3VNMP      Market_35   Service           745  Small               5691        38209           59       75138        34217          27.3           97.6  {'status': 'Under Investigation', 'trust_level': 'Low', 'reputation_score': 75.7, 'compliance_metrics': {'penalty_count': 0, 'warning_count': 4, 'rule_break_count': 4, 'restriction_level': 'Full'}, 'community_trust_score': 64.0, 'dispute_resolution_score': 3.2}
+MKT_3Y1WX      Market_91   Forum             579  Medium              3093        43189          185       60697        38732           4.3           89.4  {'status': 'Suspended', 'trust_level': 'Medium', 'reputation_score': 84.4, 'compliance_metrics': {'penalty_count': 1, 'warning_count': 7, 'rule_break_count': 7, 'restriction_level': 'Partial'}, 'community_trust_score': 95.2, 'dispute_resolution_score': 33.2}
+...
+
+
+CREATE TABLE "securitymonitoring" (
+secmonregistry character varying NOT NULL,
+securityauditstatus USER-DEFINED NULL,
+vulntally smallint NULL,
+inctally smallint NULL,
+securitymeasurecount smallint NULL,
+encryptionstrength USER-DEFINED NULL,
+authenticationmethod USER-DEFINED NULL,
+sessionsecurityscore numeric NULL,
+dataprotectionlevel USER-DEFINED NULL,
+privprotscore numeric NULL,
+operationalsecurityscore numeric NULL,
+fpprob numeric NULL,
+alertsev USER-DEFINED NULL,
+alertcategory USER-DEFINED NULL,
+alertconfidencescore numeric NULL,
+riskref character varying NULL,
+commref character varying NULL,
+threat_analysis_metrics jsonb NULL,
+    PRIMARY KEY (secmonregistry),
+    FOREIGN KEY (commref) REFERENCES communication(commregistry),
+    FOREIGN KEY (riskref) REFERENCES riskanalysis(riskregistry)
+);
+
+First 3 rows:
+secmonregistry    securityauditstatus      vulntally    inctally    securitymeasurecount  encryptionstrength    authenticationmethod      sessionsecurityscore  dataprotectionlevel      privprotscore    operationalsecurityscore    fpprob  alertsev    alertcategory      alertconfidencescore  riskref     commref     threat_analysis_metrics
+----------------  ---------------------  -----------  ----------  ----------------------  --------------------  ----------------------  ----------------------  ---------------------  ---------------  --------------------------  --------  ----------  ---------------  ----------------------  ----------  ----------  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SECMON_EBN59      Fail                            15           0                      12  Standard              Basic                                    89.48  Basic                             6.04                       23.87       2.3  High        Security                           2.56  RISK_MXF5J  COMM_I21GC  {'anonymity_level': 'High', 'traceability_score': 76.954, 'ml_confidence_score': 75.757, 'pattern_matching_score': 75.63, 'anomaly_detection_score': 79.206, 'detection_evasion_score': 25.61, 'behavioral_analysis_score': 30.97, 'threat_intelligence_score': 73.84, 'event_correlation_strength': 89.174}
+SECMON_GYFA8      Pass                            19           4                      13  Strong                2FA                                      19.66  Enhanced                         48.97                       79.58       1.3  High        Transaction                        1.62  RISK_JUZR9  COMM_T18IA  {'anonymity_level': 'Low', 'traceability_score': 59.172, 'ml_confidence_score': 21.196, 'pattern_matching_score': 75.5, 'anomaly_detection_score': 92.577, 'detection_evasion_score': 59.34, 'behavioral_analysis_score': 3.95, 'threat_intelligence_score': 61.17, 'event_correlation_strength': 24.63}
+SECMON_6NVR1      Pass                            13           2                       0  Military-grade        2FA                                      53.33  Basic                            84.42                       45.11       8.2  Critical    Transaction                        0.13  RISK_MLVPK  COMM_OU74A  {'anonymity_level': 'Medium', 'traceability_score': 18.212, 'ml_confidence_score': 67.884, 'pattern_matching_score': 30.63, 'anomaly_detection_score': 65.344, 'detection_evasion_score': 49.26, 'behavioral_analysis_score': 68.89, 'threat_intelligence_score': 3.99, 'event_correlation_strength': 59.875}
+...
+
+
+CREATE TABLE "vendors" (
+vendregistry character varying NOT NULL,
+vendspan integer NULL,
+vendrate numeric NULL,
+vendtxcount integer NULL,
+vendsucccount integer NULL,
+venddisputecount integer NULL,
+vendplacecount smallint NULL,
+vendpaymethods smallint NULL,
+vendchecklvl USER-DEFINED NULL,
+vendlastmoment date NULL,
+mktref character varying NULL,
+    PRIMARY KEY (vendregistry),
+    FOREIGN KEY (mktref) REFERENCES markets(mktregistry)
+);
+
+First 3 rows:
+vendregistry      vendspan    vendrate    vendtxcount    vendsucccount    venddisputecount    vendplacecount    vendpaymethods  vendchecklvl    vendlastmoment    mktref
+--------------  ----------  ----------  -------------  ---------------  ------------------  ----------------  ----------------  --------------  ----------------  ---------
+VEND_0DY9A             319         4.5         576887           428648               89535                 5                 2  Advanced        2025-02-15        MKT_SOB5D
+VEND_2JDYC              26         4.1         683389           880175               26386                 5                 8  Basic           2025-02-05        MKT_3VNMP
+VEND_3EUJI             179         3.9         137303           264983               77677                 7                 2  Advanced        2025-01-31        MKT_VTIB5
+...
+
+
+CREATE TABLE "investigation" (
+investregistry character varying NOT NULL,
+investstat USER-DEFINED NULL,
+lawinterest USER-DEFINED NULL,
+regrisklvl USER-DEFINED NULL,
+compliancescore numeric NULL,
+investpriority USER-DEFINED NULL,
+resptimemins integer NULL,
+escalationlevel USER-DEFINED NULL,
+casestatus USER-DEFINED NULL,
+resolutiontimehours smallint NULL,
+actiontaken USER-DEFINED NULL,
+followuprequired USER-DEFINED NULL,
+reviewfrequency USER-DEFINED NULL,
+nextreviewdate date NULL,
+notescount smallint NULL,
+dataretentionstatus USER-DEFINED NULL,
+lastupdated timestamp without time zone NULL,
+updatefrequencyhours integer NULL,
+secref character varying NULL,
+riskref character varying NULL,
+    PRIMARY KEY (investregistry),
+    FOREIGN KEY (riskref) REFERENCES riskanalysis(riskregistry),
+    FOREIGN KEY (secref) REFERENCES securitymonitoring(secmonregistry)
+);
+
+First 3 rows:
+investregistry    investstat    lawinterest    regrisklvl      compliancescore  investpriority      resptimemins  escalationlevel    casestatus      resolutiontimehours  actiontaken    followuprequired    reviewfrequency    nextreviewdate      notescount  dataretentionstatus    lastupdated            updatefrequencyhours  secref        riskref
+----------------  ------------  -------------  ------------  -----------------  ----------------  --------------  -----------------  ------------  ---------------------  -------------  ------------------  -----------------  ----------------  ------------  ---------------------  -------------------  ----------------------  ------------  ----------
+INVEST_T7MI5      Closed        High           Medium                     2.3   Low                          583  Level1             In Progress                     143  Restriction    Yes                 Monthly            2021-12-08                  33  Active                 2025-12-12 06:51:55                     710  SECMON_EBN59  RISK_MXF5J
+INVEST_UPT1O      Monitoring    Medium         High                      55.46  High                        1097  Level2             In Progress                     609  Warning        No                  Weekly             2024-06-05                  20  Archived               2024-01-09 09:46:47                     195  SECMON_GYFA8  RISK_JUZR9
+INVEST_CIP8J      Closed        Low            High                      39.38  Low                         1209  Level2             In Progress                     112  Termination    Yes                 Daily              2021-10-10                  38  Archived               2021-07-15 08:24:25                     186  SECMON_6NVR1  RISK_MLVPK
+...
+
+
+CREATE TABLE "buyers" (
+buyregistry character varying NOT NULL,
+buyspan integer NULL,
+buytxtally smallint NULL,
+buyspending USER-DEFINED NULL,
+buyfreqcat USER-DEFINED NULL,
+buychecklvl USER-DEFINED NULL,
+buyriskrate numeric NULL,
+mktref character varying NULL,
+vendref character varying NULL,
+    PRIMARY KEY (buyregistry),
+    FOREIGN KEY (mktref) REFERENCES markets(mktregistry),
+    FOREIGN KEY (vendref) REFERENCES vendors(vendregistry)
+);
+
+First 3 rows:
+buyregistry      buyspan    buytxtally  buyspending    buyfreqcat    buychecklvl      buyriskrate  mktref     vendref
+-------------  ---------  ------------  -------------  ------------  -------------  -------------  ---------  ----------
+BUY_4CF99            326            10  Low            Heavy         Advanced                29.5  MKT_SOB5D  VEND_0DY9A
+BUY_SAR2O            166            40  Medium         Regular       Basic                   71.5  MKT_3VNMP  VEND_2JDYC
+BUY_9KX6B             81            96  Medium         One-time      Basic                   54.5  MKT_3Y1WX  VEND_JAI03
+...
+
+
+CREATE TABLE "products" (
+prodregistry character varying NOT NULL,
+prodtheme USER-DEFINED NULL,
+prodsubcat USER-DEFINED NULL,
+prodlistdays integer NULL,
+prodpriceusd numeric NULL,
+prodqty integer NULL,
+vendref character varying NULL,
+buyref character varying NULL,
+    PRIMARY KEY (prodregistry),
+    FOREIGN KEY (buyref) REFERENCES buyers(buyregistry),
+    FOREIGN KEY (vendref) REFERENCES vendors(vendregistry)
+);
+
+First 3 rows:
+prodregistry    prodtheme    prodsubcat      prodlistdays    prodpriceusd    prodqty  vendref     buyref
+--------------  -----------  ------------  --------------  --------------  ---------  ----------  ---------
+PROD_0C7HD      Digital      Type_B                   155         6478.18         92  VEND_0DY9A  BUY_4CF99
+PROD_LH5LN      Data         Type_C                   105         7111.06         48  VEND_2JDYC  BUY_SAR2O
+PROD_ARXK5      Digital      Type_B                   116         6119.25         59  VEND_JAI03  BUY_9KX6B
+...
+
+
+CREATE TABLE "transactions" (
+txregistry character varying NOT NULL,
+rectag character varying NULL,
+eventstamp timestamp without time zone NULL,
+paymethod USER-DEFINED NULL,
+payamtusd numeric NULL,
+txfeeusd numeric NULL,
+escrowused USER-DEFINED NULL,
+escrowhrs smallint NULL,
+multisigflag USER-DEFINED NULL,
+txstatus USER-DEFINED NULL,
+txfinishhrs numeric NULL,
+shipmethod USER-DEFINED NULL,
+shipregionsrc USER-DEFINED NULL,
+shipregiondst USER-DEFINED NULL,
+crossborderflag USER-DEFINED NULL,
+routecomplexity USER-DEFINED NULL,
+mktref character varying NULL,
+prodref character varying NULL,
+buyref character varying NULL,
+    PRIMARY KEY (txregistry),
+    FOREIGN KEY (buyref) REFERENCES buyers(buyregistry),
+    FOREIGN KEY (mktref) REFERENCES markets(mktregistry),
+    FOREIGN KEY (prodref) REFERENCES products(prodregistry)
+);
+
+First 3 rows:
+txregistry    rectag    eventstamp           paymethod      payamtusd    txfeeusd  escrowused      escrowhrs  multisigflag    txstatus      txfinishhrs  shipmethod    shipregionsrc    shipregiondst    crossborderflag    routecomplexity    mktref     prodref     buyref
+------------  --------  -------------------  -----------  -----------  ----------  ------------  -----------  --------------  ----------  -------------  ------------  ---------------  ---------------  -----------------  -----------------  ---------  ----------  ---------
+TX_4F06D      DN541412  2021-04-16 05:29:33  Crypto_A         12680.1      182     Yes                    69  No              Pending             114.9  Express       Region_B         Unknown          Yes                Complex            MKT_SOB5D  PROD_0C7HD  BUY_4CF99
+TX_69L3A      DN772007  2021-02-14 22:29:36  Token            33015.7      218.3   No                    121  No              Completed            88.7  Custom        Unknown          Region_X         Yes                Complex            MKT_3VNMP  PROD_LH5LN  BUY_SAR2O
+TX_F8DOW      DN873987  2025-12-08 05:04:23  Crypto_B         45450.8       84.52  No                     47  No              Cancelled           136.1  Digital       Region_B         Region_X         No                 Medium             MKT_3Y1WX  PROD_ARXK5  BUY_9KX6B
+...
+
+
+CREATE TABLE "communication" (
+commregistry character varying NOT NULL,
+iptally smallint NULL,
+tornodecount smallint NULL,
+vpnflag USER-DEFINED NULL,
+brwsrunique numeric NULL,
+devfpscore numeric NULL,
+connpatscore numeric NULL,
+encryptmethod USER-DEFINED NULL,
+commchannel USER-DEFINED NULL,
+msgtally smallint NULL,
+commfreq USER-DEFINED NULL,
+langpattern USER-DEFINED NULL,
+sentiscore numeric NULL,
+keymatchcount smallint NULL,
+susppatscore numeric NULL,
+riskindiccount smallint NULL,
+txref character varying NULL,
+prodref character varying NULL,
+    PRIMARY KEY (commregistry),
+    FOREIGN KEY (prodref) REFERENCES products(prodregistry),
+    FOREIGN KEY (txref) REFERENCES transactions(txregistry)
+);
+
+First 3 rows:
+commregistry      iptally    tornodecount  vpnflag      brwsrunique    devfpscore    connpatscore  encryptmethod    commchannel      msgtally  commfreq    langpattern      sentiscore    keymatchcount    susppatscore    riskindiccount  txref     prodref
+--------------  ---------  --------------  ---------  -------------  ------------  --------------  ---------------  -------------  ----------  ----------  -------------  ------------  ---------------  --------------  ----------------  --------  ----------
+COMM_BGDA3              9              25  No                   6.4         5.613           80.65  Standard         External               36  Medium      Variable              0.85                58            1.82                29  TX_4F06D  PROD_0C7HD
+COMM_MJ90F              9              75  No                  61.5         1.454           29.25  Custom           Mixed                  10  Low         Consistent            0.279               65           10.18                49  TX_69L3A  PROD_LH5LN
+COMM_6HX3V              3              97  Suspected           79           6.659            2.53  Standard         External                5  Medium      Consistent            0.053               90           12.42                40  TX_F8DOW  PROD_ARXK5
+...
+
+
+CREATE TABLE "riskanalysis" (
+riskregistry character varying NOT NULL,
+fraudprob numeric NULL,
+moneyrisk USER-DEFINED NULL,
+linkedtxcount smallint NULL,
+txchainlen smallint NULL,
+wallrisksc numeric NULL,
+wallage integer NULL,
+wallbalusd numeric NULL,
+wallturnrt numeric NULL,
+txvel numeric NULL,
+profilecomplete numeric NULL,
+idverifyscore numeric NULL,
+feedbackauthscore numeric NULL,
+commref character varying NULL,
+txref character varying NULL,
+network_behavior_analytics jsonb NULL,
+    PRIMARY KEY (riskregistry),
+    FOREIGN KEY (commref) REFERENCES communication(commregistry),
+    FOREIGN KEY (txref) REFERENCES transactions(txregistry)
+);
+
+First 3 rows:
+riskregistry      fraudprob  moneyrisk      linkedtxcount    txchainlen    wallrisksc    wallage    wallbalusd    wallturnrt    txvel    profilecomplete    idverifyscore    feedbackauthscore  commref     txref     network_behavior_analytics
+--------------  -----------  -----------  ---------------  ------------  ------------  ---------  ------------  ------------  -------  -----------------  ---------------  -------------------  ----------  --------  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+RISK_UUZ5A            0.433  Low                       29             4          34.4        722       98937.3         42.32     58.4                8.9              3.8                  6.6  COMM_BGDA3  TX_4F06D  {'network_analysis': {'centrality_score': 13.082, 'cluster_coefficient': None, 'connection_diversity': 97.77}, 'behavioral_analysis': {'geo_distribution_score': 81.9, 'temporal_pattern_score': 70.39, 'behavior_consistency_score': 67.64}, 'transaction_pattern_category': 'Suspicious'}
+RISK_M8885            0.981  Medium                     8             9          29.8        307       16240.8          4.29     97.7                0.8              7.5                  1.3  COMM_MJ90F  TX_69L3A  {'network_analysis': {'centrality_score': 84.588, 'cluster_coefficient': None, 'connection_diversity': 80.62}, 'behavioral_analysis': {'geo_distribution_score': 7.1, 'temporal_pattern_score': 61.89, 'behavior_consistency_score': 85.54}, 'transaction_pattern_category': 'Normal'}
+RISK_KAE6H            0.53   Low                       47            10          47.4        879       26348.1         19.45     88.4                9.2              6.6                  2.2  COMM_6HX3V  TX_F8DOW  {'network_analysis': {'centrality_score': 34.528, 'cluster_coefficient': None, 'connection_diversity': 83.97}, 'behavioral_analysis': {'geo_distribution_score': 74.0, 'temporal_pattern_score': 59.13, 'behavior_consistency_score': 52.45}, 'transaction_pattern_category': 'High-risk'}
+...

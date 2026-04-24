@@ -1,0 +1,233 @@
+CREATE TABLE "dataflow" (
+recordregistry character NOT NULL,
+flowstamp timestamp without time zone NULL,
+flowtag character varying NULL,
+orignation character varying NULL,
+destnation character varying NULL,
+origactor character varying NULL,
+destactor character varying NULL,
+chanproto character varying NULL,
+chanfreq character varying NULL,
+datasizemb numeric NULL,
+durmin smallint NULL,
+bwidthpct numeric NULL,
+successpct numeric NULL,
+errtally smallint NULL,
+rtrytally smallint NULL,
+    PRIMARY KEY (recordregistry)
+);
+
+First 3 rows:
+recordregistry    flowstamp                   flowtag    orignation                    destnation    origactor       destactor                chanproto        chanfreq      datasizemb    durmin    bwidthpct    successpct    errtally    rtrytally
+----------------  --------------------------  ---------  ----------------------------  ------------  --------------  -----------------------  ---------------  ----------  ------------  --------  -----------  ------------  ----------  -----------
+CB932064          2024-03-11 11:43:31.039769  DF7811     Niue                          Djibouti      Hill Ltd        Davis, Harper and Weber  Blockchain       Weekly           42668.4      1068        68.81         99.93          39            1
+CB339111          2024-05-01 07:58:45.040384  DF9309     Israel                        Monaco        Boyer-Mcdonald  Rogers Inc               SFTP             Hourly           32804         996         7.52         91.77          68           48
+CB899685          2024-05-07 04:39:04.040801  DF8105     United States Virgin Islands  Germany       Curtis Inc      Horton LLC               Private Network  Real-time        93843.2      1325        62.66         93.76          80           45
+...
+
+
+CREATE TABLE "auditandcompliance" (
+audittrace integer NOT NULL DEFAULT nextval('auditandcompliance_audittrace_seq1'::regclass),
+profjoin integer NOT NULL,
+compjoin integer NOT NULL,
+vendjoin integer NOT NULL,
+recordregistry character NULL,
+audtrailstate USER-DEFINED NULL,
+findtally smallint NULL,
+critfindnum smallint NULL,
+remedstate character varying NULL,
+remeddue date NULL,
+authnotify character varying NULL,
+bordermech character varying NULL,
+transimpassess text NULL,
+localreqs text NULL,
+datamapstate character varying NULL,
+sysintstate character varying NULL,
+accreqnum smallint NULL,
+delreqnum smallint NULL,
+rectreqnum smallint NULL,
+portreqnum smallint NULL,
+resptimeday numeric NULL,
+    PRIMARY KEY (audittrace),
+    FOREIGN KEY (compjoin) REFERENCES compliance(compliancetrace),
+    FOREIGN KEY (profjoin) REFERENCES dataprofile(profiletrace),
+    FOREIGN KEY (vendjoin) REFERENCES vendormanagement(vendortrace)
+);
+
+First 3 rows:
+  audittrace    profjoin    compjoin    vendjoin  recordregistry    audtrailstate      findtally    critfindnum  remedstate    remeddue    authnotify    bordermech         transimpassess    localreqs    datamapstate    sysintstate         accreqnum    delreqnum    rectreqnum    portreqnum    resptimeday
+------------  ----------  ----------  ----------  ----------------  ---------------  -----------  -------------  ------------  ----------  ------------  -----------------  ----------------  -----------  --------------  ----------------  -----------  -----------  ------------  ------------  -------------
+           1           1           1           1  CB932064          Complete                   3              6  In Progress   2025-03-16  Not Required  SCCs               Required          Not Met      Partial         Fully Integrated          959          409            76            53            4.5
+           2           2           2           2  CB339111          Complete                  49              8  In Progress   2025-04-14  Required      Adequacy Decision  Completed         Met          Partial         Manual                     36          326           196            21           13.4
+           3           3           3           3  CB899685                                     6              5  Not Started   2025-04-10  Required      Derogations        In Progress       Partial      Partial         Fully Integrated          650          122             0            89           23.2
+...
+
+
+CREATE TABLE "riskmanagement" (
+risktrace integer NOT NULL DEFAULT nextval('riskmanagement_risktrace_seq'::regclass),
+flowlink character NOT NULL,
+recordregistry character NULL,
+riskassess numeric NULL,
+riskmitstate character varying NULL,
+secureaction text NULL,
+breachnotify text NULL,
+incidentplan text NULL,
+incidentcount smallint NULL,
+breachcount smallint NULL,
+nearmissnum smallint NULL,
+avgresolhrs numeric NULL,
+slapct numeric NULL,
+costusd numeric NULL,
+penusd numeric NULL,
+coveragestate character varying NULL,
+residrisklevel character varying NULL,
+ctrleff numeric NULL,
+compscore numeric NULL,
+maturitylevel character varying NULL,
+nextrevdate date NULL,
+planstate character varying NULL,
+    PRIMARY KEY (risktrace),
+    FOREIGN KEY (flowlink) REFERENCES dataflow(recordregistry)
+);
+
+First 3 rows:
+  risktrace  flowlink    recordregistry      riskassess  riskmitstate    secureaction    breachnotify    incidentplan      incidentcount    breachcount    nearmissnum    avgresolhrs    slapct    costusd            penusd  coveragestate    residrisklevel      ctrleff    compscore  maturitylevel    nextrevdate    planstate
+-----------  ----------  ----------------  ------------  --------------  --------------  --------------  --------------  ---------------  -------------  -------------  -------------  --------  ---------  ----------------  ---------------  ----------------  ---------  -----------  ---------------  -------------  -----------
+          1  CB932064    CB932064                 75.89  Pending         Adequate        Partial         Missing                       8              1              1           42.7     97.28    62143.3       1.03576e+06                   Medium                30.51        76.41  Optimized        2025-06-02     On Track
+          2  CB339111    CB339111                 67.11  Pending         Strong          Established     Active                       54              2              7          149.6     92.63   697140         1.90198e+06  Limited          High                  25.93        75.01  Optimized        2025-10-14     On Track
+          3  CB899685    CB899685                 17.4   Pending         Insufficient    Established     Outdated                     40              6              3           92.3     99.54    81412.1  110601                             Medium                61.71        51.95  Managed          2025-10-04     Not Started
+...
+
+
+CREATE TABLE "dataprofile" (
+profiletrace integer NOT NULL DEFAULT nextval('dataprofile_profiletrace_seq1'::regclass),
+flowsign character NOT NULL,
+riskjoin integer NOT NULL,
+recordregistry character NULL,
+datatype character varying NULL,
+datasense character varying NULL,
+volgb numeric NULL,
+rectally bigint NULL,
+subjtally bigint NULL,
+retdays integer NULL,
+formattype character varying NULL,
+qltyscore numeric NULL,
+intcheck USER-DEFINED NULL,
+csumverify USER-DEFINED NULL,
+srcvalstate USER-DEFINED NULL,
+destvalstate USER-DEFINED NULL,
+    PRIMARY KEY (profiletrace),
+    FOREIGN KEY (flowsign) REFERENCES dataflow(recordregistry),
+    FOREIGN KEY (riskjoin) REFERENCES riskmanagement(risktrace)
+);
+
+First 3 rows:
+  profiletrace  flowsign      riskjoin  recordregistry    datatype    datasense      volgb    rectally    subjtally    retdays  formattype      qltyscore  intcheck    csumverify    srcvalstate    destvalstate
+--------------  ----------  ----------  ----------------  ----------  -----------  -------  ----------  -----------  ---------  ------------  -----------  ----------  ------------  -------------  --------------
+             1  CB932064             1  CB932064          Commercial  High         1093.6      2629296       754585       2208  Mixed               52.45  Passed      Failed        Pending        Pending
+             2  CB339111             2  CB339111          Personal    Low          9970.36      921745       797722       3456  Unstructured        81.09  Passed      Success       Verified       Verified
+             3  CB899685             3  CB899685          Financial   Low          7306.78      751112       384363       1728  Mixed               25.2   Failed      Pending       Failed         Failed
+...
+
+
+CREATE TABLE "securityprofile" (
+securitytrace integer NOT NULL DEFAULT nextval('securityprofile_securitytrace_seq1'::regclass),
+flowkey character NOT NULL,
+riskkey integer NOT NULL,
+profilekey integer NOT NULL,
+recordregistry character NULL,
+encstate USER-DEFINED NULL,
+encmeth character varying NULL,
+keymanstate character varying NULL,
+masklevel USER-DEFINED NULL,
+anonmeth character varying NULL,
+psymstate character varying NULL,
+authmeth character varying NULL,
+authzframe character varying NULL,
+aclstate character varying NULL,
+apisecstate character varying NULL,
+logintcheck character varying NULL,
+logretdays smallint NULL,
+bkpstate character varying NULL,
+drecstate character varying NULL,
+bcstate character varying NULL,
+    PRIMARY KEY (securitytrace),
+    FOREIGN KEY (flowkey) REFERENCES dataflow(recordregistry),
+    FOREIGN KEY (profilekey) REFERENCES dataprofile(profiletrace),
+    FOREIGN KEY (riskkey) REFERENCES riskmanagement(risktrace)
+);
+
+First 3 rows:
+  securitytrace  flowkey      riskkey    profilekey  recordregistry    encstate    encmeth    keymanstate    masklevel    anonmeth     psymstate    authmeth    authzframe    aclstate    apisecstate    logintcheck      logretdays  bkpstate    drecstate    bcstate
+---------------  ---------  ---------  ------------  ----------------  ----------  ---------  -------------  -----------  -----------  -----------  ----------  ------------  ----------  -------------  -------------  ------------  ----------  -----------  ---------
+              1  CB932064           1             1  CB932064          Full        SM4        Hybrid                      T-Closeness  Partial      Basic       ABAC          Adequate    Vulnerable     Pending                 905  Current     Untested     Active
+              2  CB339111           2             2  CB339111          Partial     SM4        Hybrid                      T-Closeness               SSO         ABAC          Adequate    Vulnerable     Pending                 439  Failed      Tested       Outdated
+              3  CB899685           3             3  CB899685          Partial     Custom     Distributed    Partial      T-Closeness  Partial      SSO         Custom        Strong      Vulnerable     Passed                  621  Failed      Missing      Outdated
+...
+
+
+CREATE TABLE "vendormanagement" (
+vendortrace integer NOT NULL DEFAULT nextval('vendormanagement_vendortrace_seq1'::regclass),
+secjoin integer NOT NULL,
+riskassoc integer NOT NULL,
+recordregistry character NULL,
+vendassess character varying NULL,
+vendsecrate USER-DEFINED NULL,
+vendauddate date NULL,
+contrstate character varying NULL,
+contrexpire date NULL,
+dpastate character varying NULL,
+sccstate character varying NULL,
+bcrstate character varying NULL,
+docustate character varying NULL,
+polcomp character varying NULL,
+proccomp character varying NULL,
+trainstate character varying NULL,
+certstate character varying NULL,
+monstate character varying NULL,
+repstate character varying NULL,
+stakecomm text NULL,
+    PRIMARY KEY (vendortrace),
+    FOREIGN KEY (riskassoc) REFERENCES riskmanagement(risktrace),
+    FOREIGN KEY (secjoin) REFERENCES securityprofile(securitytrace)
+);
+
+First 3 rows:
+  vendortrace    secjoin    riskassoc  recordregistry    vendassess    vendsecrate    vendauddate    contrstate    contrexpire    dpastate    sccstate     bcrstate    docustate    polcomp    proccomp       trainstate    certstate    monstate    repstate    stakecomm
+-------------  ---------  -----------  ----------------  ------------  -------------  -------------  ------------  -------------  ----------  -----------  ----------  -----------  ---------  -------------  ------------  -----------  ----------  ----------  -----------
+            1          1            1  CB932064          Completed     A              2024-05-30     Active        2027-01-12     Required    Implemented  Approved    Complete     Partial    Non-compliant  Due           Pending      Inactive    Delayed     Limited
+            2          2            2  CB339111          Completed     A              2024-06-30     Under Review  2026-08-16     Required    Implemented  Pending     Incomplete   Full       Non-compliant  Overdue       Expired      Inactive    Delayed     Poor
+            3          3            3  CB899685          In Progress   B              2024-11-14     Expired       2026-04-26     Signed      Partial      Pending     Incomplete   Full       Non-compliant  Current       Valid        Partial     Delayed     Limited
+...
+
+
+CREATE TABLE "compliance" (
+compliancetrace integer NOT NULL DEFAULT nextval('compliance_compliancetrace_seq1'::regclass),
+risktie integer NOT NULL,
+vendortie integer NOT NULL,
+recordregistry character NULL,
+legalbase character varying NULL,
+consentstate character varying NULL,
+consentcoll date NULL,
+consentexp date NULL,
+purplimit character varying NULL,
+purpdesc text NULL,
+gdprcomp USER-DEFINED NULL,
+ccpacomp USER-DEFINED NULL,
+piplcomp USER-DEFINED NULL,
+loclawcomp USER-DEFINED NULL,
+regapprovals character varying NULL,
+privimpassess text NULL,
+datasubjright character varying NULL,
+    PRIMARY KEY (compliancetrace),
+    FOREIGN KEY (risktie) REFERENCES riskmanagement(risktrace),
+    FOREIGN KEY (vendortie) REFERENCES vendormanagement(vendortrace)
+);
+
+First 3 rows:
+  compliancetrace    risktie    vendortie  recordregistry    legalbase         consentstate    consentcoll    consentexp    purplimit    purpdesc             gdprcomp    ccpacomp       piplcomp       loclawcomp     regapprovals    privimpassess    datasubjright
+-----------------  ---------  -----------  ----------------  ----------------  --------------  -------------  ------------  -----------  -------------------  ----------  -------------  -------------  -------------  --------------  ---------------  ---------------
+                1          1            1  CB932064          Legal Obligation  Not Required    2024-09-13     2026-05-17    General      Business Operations  Partial     Compliant      Non-compliant  Non-compliant  Obtained        Completed        Partial
+                2          2            2  CB339111          Legal Obligation  Valid           2025-01-15     2025-02-25    Multiple     Research             Partial     Non-compliant  Partial        Compliant      Not Required    In Progress      Fully Supported
+                3          3            3  CB899685          Contract          Expired         2024-10-13     2025-03-30    Multiple     Research             Partial     Partial        Non-compliant  Non-compliant  Pending         In Progress      Limited
+...

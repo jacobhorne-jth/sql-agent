@@ -1,0 +1,352 @@
+CREATE TABLE "projects" (
+arcregistry character varying NOT NULL,
+vesseltag character varying NULL,
+fundflux text NULL,
+authpin character NULL,
+authhalt date NULL,
+    PRIMARY KEY (arcregistry)
+);
+
+First 3 rows:
+arcregistry    vesseltag        fundflux    authpin    authhalt
+-------------  ---------------  ----------  ---------  ----------
+PR7509         Project Happy    Government  PMT4719    2025-12-05
+PR8078         Project Off      Government  PMT4944    2025-09-20
+PR9973         Project Central  University  PMT5400    2025-03-18
+...
+
+
+CREATE TABLE "scanmesh" (
+facetregistry bigint NOT NULL DEFAULT nextval('scanmesh_facetregistry_seq'::regclass),
+zoneref character varying NOT NULL,
+equipref character NOT NULL,
+facetverts bigint NULL,
+facetfaces bigint NULL,
+facetresmm numeric NULL,
+texdist character varying NULL,
+texpix integer NULL,
+uvmapqual character varying NULL,
+geomdeltamm numeric NULL,
+    PRIMARY KEY (facetregistry),
+    FOREIGN KEY (equipref) REFERENCES equipment(equipregistry),
+    FOREIGN KEY (zoneref) REFERENCES sites(zoneregistry)
+);
+
+First 3 rows:
+  facetregistry  zoneref    equipref      facetverts    facetfaces    facetresmm  texdist      texpix  uvmapqual      geomdeltamm
+---------------  ---------  ----------  ------------  ------------  ------------  ---------  --------  -----------  -------------
+              1  SC9016     SN20065          7234721       5997318          3.2   2K             2048  Medium                2.74
+              2  SC9081     SN29799          2361491       7708278          9.79  2K             8192  High                  3.79
+              3  SC4817     SN83019           542100       1973487          2.33  1K             4096  Low                   0.48
+...
+
+
+CREATE TABLE "scanprocessing" (
+flowregistry bigint NOT NULL DEFAULT nextval('scanprocessing_flowregistry_seq'::regclass),
+equipref character NOT NULL,
+zoneref character varying NOT NULL,
+flowsoft character varying NULL,
+flowhrs numeric NULL,
+proccpu smallint NULL,
+memusagegb numeric NULL,
+procgpu smallint NULL,
+stashloc character varying NULL,
+safebak character NULL,
+datalevel text NULL,
+metabench character varying NULL,
+coordframe character varying NULL,
+elevref character varying NULL,
+remaingb numeric NULL,
+stationlink character NULL,
+camcal text NULL,
+lensdist character varying NULL,
+colortune character NULL,
+flowstage character varying NULL,
+fmtver character NULL,
+    PRIMARY KEY (flowregistry),
+    FOREIGN KEY (equipref) REFERENCES equipment(equipregistry),
+    FOREIGN KEY (zoneref) REFERENCES sites(zoneregistry)
+);
+
+First 3 rows:
+  flowregistry  equipref    zoneref    flowsoft          flowhrs    proccpu    memusagegb    procgpu  stashloc    safebak      datalevel     metabench    coordframe    elevref      remaingb  stationlink    camcal    lensdist    colortune    flowstage      fmtver
+--------------  ----------  ---------  --------------  ---------  ---------  ------------  ---------  ----------  -----------  ------------  -----------  ------------  ---------  ----------  -------------  --------  ----------  -----------  -----------  --------
+             1  SN20065     SC9016     RealityCapture       21.9         81          70.3         84  Local       In Progress  Confidential  Dublin Core  Local         Arbitrary       983.5  Partial        Invalid   Corrected   Required     Aligned           2.3
+             2  SN29799     SC9081     CloudCompare         34.9        100          13.4         56  Network     Completed    Public        CIDOC CRM    WGS84         Local           599.6  Partial        Required  Unknown     Required     Aligned           2.7
+             3  SN83019     SC4817     Agisoft              25.7         67          51.7         66  Network     Pending      Confidential  CIDOC CRM    Custom        Sea Level       306.1  Partial        Required  Unknown     Adjusted     Meshed            4
+...
+
+
+CREATE TABLE "personnel" (
+crewregistry character NOT NULL,
+crewlabel character varying NULL,
+leadregistry character NULL,
+leadlabel character varying NULL,
+    PRIMARY KEY (crewregistry)
+);
+
+First 3 rows:
+crewregistry    crewlabel      leadregistry    leadlabel
+--------------  -------------  --------------  -----------------
+OP4641          Joel Wallace   SV7658          Michael Kaiser
+OP8435          Latoya Abbott  SV2189          Stephanie Marquez
+OP7199          Aaron Knight   SV6920          Victoria George
+...
+
+
+CREATE TABLE "scanspatial" (
+domainregistry bigint NOT NULL DEFAULT nextval('scanspatial_domainregistry_seq'::regclass),
+arcref character varying NOT NULL,
+crewref character NOT NULL,
+aream2 numeric NULL,
+volm3 numeric NULL,
+boxx numeric NULL,
+boxy numeric NULL,
+boxz numeric NULL,
+angleaz real NULL,
+angletilt double precision NULL,
+groundspan numeric NULL,
+    PRIMARY KEY (domainregistry),
+    FOREIGN KEY (arcref) REFERENCES projects(arcregistry),
+    FOREIGN KEY (crewref) REFERENCES personnel(crewregistry)
+);
+
+First 3 rows:
+  domainregistry  arcref    crewref      aream2    volm3    boxx    boxy    boxz    angleaz    angletilt    groundspan
+----------------  --------  ---------  --------  -------  ------  ------  ------  ---------  -----------  ------------
+               1  PR7509    OP4641        78.01    76.7    40.12    1.06    8.74      342.4         23.9          4.13
+               2  PR8078    OP8435       746.55    85.66   26.17    8.75   16.41      113           12.9          0.93
+               3  PR9973    OP7199       294.59     6.02   15.32   31.08   36.71      275.4        -22.1          1.12
+...
+
+
+CREATE TABLE "scanqc" (
+qualregistry bigint NOT NULL DEFAULT nextval('scanqc_qualregistry_seq'::regclass),
+arcref character varying NOT NULL,
+crewref character NOT NULL,
+accucheck character varying NULL,
+ctrlstate character NULL,
+valimeth character varying NULL,
+valistate text NULL,
+archstat character varying NULL,
+pubstat character varying NULL,
+copystat character NULL,
+refmention character varying NULL,
+remark text NULL,
+    PRIMARY KEY (qualregistry),
+    FOREIGN KEY (arcref) REFERENCES projects(arcregistry),
+    FOREIGN KEY (crewref) REFERENCES personnel(crewregistry)
+);
+
+First 3 rows:
+  qualregistry  arcref    crewref    accucheck     ctrlstate    valimeth    valistate    archstat    pubstat    copystat     refmention     remark
+--------------  --------  ---------  ------------  -----------  ----------  -----------  ----------  ---------  -----------  -------------  --------------------------------------------------------
+             1  PR7509    OP4641     Not Required  Pending      Automated   Rejected     Verified    Draft      Reserved     Citation-8447
+             2  PR8078    OP8435     Completed     Pending      Visual      Rejected     Verified    Submitted  Open Access  Citation-6197
+             3  PR9973    OP7199     Pending       Failed       Visual      Approved     Pending     Draft      Open Access  Citation-8090  Sell shoulder understand serious degree particular game.
+...
+
+
+CREATE TABLE "sites" (
+zoneregistry character varying NOT NULL,
+zonelabel text NULL,
+digunit character varying NULL,
+gridtrace character varying NULL,
+geox numeric NULL,
+geoy numeric NULL,
+heightm numeric NULL,
+depthc numeric NULL,
+phasefactor character varying NULL,
+guessdate character varying NULL,
+typesite character varying NULL,
+presstat character varying NULL,
+guardhint character NULL,
+entrystat character varying NULL,
+saferank character varying NULL,
+insurstat character varying NULL,
+riskeval text NULL,
+healtheval character varying NULL,
+envhaz character NULL,
+    PRIMARY KEY (zoneregistry)
+);
+
+First 3 rows:
+zoneregistry    zonelabel                  digunit    gridtrace        geox       geoy    heightm    depthc  phasefactor    guessdate    typesite    presstat    guardhint    entrystat    saferank    insurstat    riskeval    healtheval    envhaz
+--------------  -------------------------  ---------  -----------  --------  ---------  ---------  --------  -------------  -----------  ----------  ----------  -----------  -----------  ----------  -----------  ----------  ------------  --------
+SC9016          Site-North Alexanderville  Unit-C9    S29-E8       -9.60214   -2.75641     4391.4     329.9  Iron Age       -2929 BCE    Burial      Excellent                Closed       Minimal     Expired      Required    Approved      Low
+SC9081          Site-Grahammouth           Unit-A14   N44-W27      57.1075    70.0361       429.3      97.5  Medieval       1335 BCE     Industrial  Fair        Temporary    Restricted   Standard    Pending      Pending     Pending       Low
+SC4817          Site-Port Brianside        Unit-D19   S48-W26      73.6055   141.711       4934.6     499.9  Iron Age       -4985 BCE    Burial      Critical                 Closed       High        Expired      Completed   Review        High
+...
+
+
+CREATE TABLE "scanfeatures" (
+traitregistry bigint NOT NULL DEFAULT nextval('scanfeatures_traitregistry_seq'::regclass),
+zoneref character varying NOT NULL,
+equipref character NOT NULL,
+traitextract character varying NULL,
+traitcount integer NULL,
+articount integer NULL,
+structkind character varying NULL,
+matkind character varying NULL,
+huestudy character varying NULL,
+texturestudy character varying NULL,
+patternnote text NULL,
+    PRIMARY KEY (traitregistry),
+    FOREIGN KEY (equipref) REFERENCES equipment(equipregistry),
+    FOREIGN KEY (zoneref) REFERENCES sites(zoneregistry)
+);
+
+First 3 rows:
+  traitregistry  zoneref    equipref    traitextract      traitcount    articount  structkind    matkind    huestudy    texturestudy    patternnote
+---------------  ---------  ----------  --------------  ------------  -----------  ------------  ---------  ----------  --------------  -------------
+              1  SC9016     SN20065     Manual                   516           71  Artifact      Organic    Partial     Partial         Not Required
+              2  SC9081     SN29799     Semi-automatic           899           22  Complex       Metal      Partial     Not Required    Partial
+              3  SC4817     SN83019     Manual                   103           69  Complex       Ceramic    Completed   Partial         Not Required
+...
+
+
+CREATE TABLE "equipment" (
+equipregistry character NOT NULL,
+equipform character varying NULL,
+equipdesign character varying NULL,
+equiptune date NULL,
+equipstatus character varying NULL,
+powerlevel smallint NULL,
+    PRIMARY KEY (equipregistry)
+);
+
+First 3 rows:
+equipregistry    equipform         equipdesign    equiptune    equipstatus      powerlevel
+---------------  ----------------  -------------  -----------  -------------  ------------
+SN20065          LiDAR             Model-669      2024-11-01   Excellent                62
+SN29799          Structured Light  Model-835      2024-09-09   Good                     21
+SN83019          Photogrammetry    Model-566      2025-02-08   Good                     46
+...
+
+
+CREATE TABLE "scanconservation" (
+cureregistry bigint NOT NULL DEFAULT nextval('scanconservation_cureregistry_seq'::regclass),
+arcref character varying NOT NULL,
+zoneref character varying NOT NULL,
+harmassess character varying NULL,
+curerank character varying NULL,
+structstate character varying NULL,
+intervhistory text NULL,
+priordocs text NULL,
+    PRIMARY KEY (cureregistry),
+    FOREIGN KEY (arcref) REFERENCES projects(arcregistry),
+    FOREIGN KEY (zoneref) REFERENCES sites(zoneregistry)
+);
+
+First 3 rows:
+  cureregistry  arcref    zoneref    harmassess    curerank    structstate    intervhistory    priordocs
+--------------  --------  ---------  ------------  ----------  -------------  ---------------  -----------
+             1  PR7509    SC9016                   Critical    Moderate       Minor
+             2  PR8078    SC9081     Severe        Low         Moderate       Major            Partial
+             3  PR9973    SC4817     Moderate      High        Moderate
+...
+
+
+CREATE TABLE "scans" (
+questregistry character varying NOT NULL,
+chronotag timestamp without time zone NULL,
+arcref character varying NOT NULL,
+crewref character NOT NULL,
+zoneref character varying NOT NULL,
+scancount smallint NULL,
+climtune character varying NULL,
+huecatch character varying NULL,
+fmtfile character NULL,
+gbsize numeric NULL,
+pressratio numeric NULL,
+spanmin numeric NULL,
+    PRIMARY KEY (questregistry),
+    FOREIGN KEY (arcref) REFERENCES projects(arcregistry),
+    FOREIGN KEY (crewref) REFERENCES personnel(crewregistry),
+    FOREIGN KEY (zoneref) REFERENCES sites(zoneregistry)
+);
+
+First 3 rows:
+questregistry    chronotag                   arcref    crewref    zoneref      scancount  climtune    huecatch    fmtfile      gbsize    pressratio    spanmin
+---------------  --------------------------  --------  ---------  ---------  -----------  ----------  ----------  ---------  --------  ------------  ---------
+ASD409481        2024-09-03 07:20:28.479288  PR7509    OP4641     SC9016               5  Windy       RGB         PTS           24.71          3.22         63
+ASD648638        2024-07-27 08:52:12.479479  PR8078    OP8435     SC9081               2  Rainy       RGB         PLY           21.63          6.86        240
+ASD535327        2025-01-24 12:45:10.479479  PR9973    OP7199     SC4817               7  Windy       RGB         PLY           41.48          4.2          37
+...
+
+
+CREATE TABLE "scanregistration" (
+logregistry bigint NOT NULL DEFAULT nextval('scanregistration_logregistry_seq'::regclass),
+crewref character NOT NULL,
+arcref character varying NOT NULL,
+logaccumm numeric NULL,
+refmark character varying NULL,
+ctrlpts character varying NULL,
+logmethod character varying NULL,
+transform character varying NULL,
+errscale character varying NULL,
+errvalmm numeric NULL,
+    PRIMARY KEY (logregistry),
+    FOREIGN KEY (arcref) REFERENCES projects(arcregistry),
+    FOREIGN KEY (crewref) REFERENCES personnel(crewregistry)
+);
+
+First 3 rows:
+  logregistry  crewref    arcref      logaccumm    refmark    ctrlpts  logmethod     transform    errscale          errvalmm
+-------------  ---------  --------  -----------  ---------  ---------  ------------  -----------  --------------  ----------
+            1  OP4641     PR7509           0.84         40         73  Hybrid        Matrix-47    Cloud-to-Mesh        6.962
+            2  OP8435     PR8078           3.44         21          6  Target-based  Matrix-712   Cloud-to-Mesh        4.442
+            3  OP7199     PR9973           3.95         25         84  Hybrid        Matrix-113   Cloud-to-Cloud       6.069
+...
+
+
+CREATE TABLE "scanenvironment" (
+airregistry bigint NOT NULL DEFAULT nextval('scanenvironment_airregistry_seq'::regclass),
+zoneref character varying NOT NULL,
+equipref character NOT NULL,
+ambictemp numeric NULL,
+humepct numeric NULL,
+illumelux integer NULL,
+geosignal character varying NULL,
+trackstatus character varying NULL,
+linkstatus character varying NULL,
+photomap character NULL,
+imgcount smallint NULL,
+    PRIMARY KEY (airregistry),
+    FOREIGN KEY (equipref) REFERENCES equipment(equipregistry),
+    FOREIGN KEY (zoneref) REFERENCES sites(zoneregistry)
+);
+
+First 3 rows:
+  airregistry  zoneref    equipref      ambictemp    humepct    illumelux  geosignal    trackstatus    linkstatus    photomap      imgcount
+-------------  ---------  ----------  -----------  ---------  -----------  -----------  -------------  ------------  ----------  ----------
+            1  SC9016     SN20065            25.3       60.4        86054                              Disconnected  80%                248
+            2  SC9081     SN29799             8.8       32.9        51271                              Connected     60%                874
+            3  SC4817     SN83019            -3.9       72.6        21889  Poor         Fixed          Disconnected  80%                750
+...
+
+
+CREATE TABLE "scanpointcloud" (
+cloudregistry bigint NOT NULL DEFAULT nextval('scanpointcloud_cloudregistry_seq'::regclass),
+crewref character NOT NULL,
+arcref character varying NOT NULL,
+scanresolmm numeric NULL,
+pointdense integer NULL,
+coverpct numeric NULL,
+totalpts bigint NULL,
+clouddense integer NULL,
+lappct numeric NULL,
+noisedb numeric NULL,
+refpct numeric NULL,
+    PRIMARY KEY (cloudregistry),
+    FOREIGN KEY (arcref) REFERENCES projects(arcregistry),
+    FOREIGN KEY (crewref) REFERENCES personnel(crewregistry)
+);
+
+First 3 rows:
+  cloudregistry  crewref    arcref      scanresolmm    pointdense    coverpct    totalpts    clouddense    lappct    noisedb    refpct
+---------------  ---------  --------  -------------  ------------  ----------  ----------  ------------  --------  ---------  --------
+              1  OP4641     PR7509             2.4          42812        91.2    46562436          9449      31.3      1.318      11
+              2  OP8435     PR8078             4.72        974154        84.7    73534012           431      48.6      1.788      65.4
+              3  OP7199     PR9973             4.9         934361        98.1    87734478          1746      31.7      1.79       53.8
+...

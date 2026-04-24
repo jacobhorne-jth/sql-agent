@@ -1,0 +1,201 @@
+CREATE TABLE "core_record" (
+coreregistry character varying NOT NULL,
+timemark timestamp without time zone NULL,
+clientref character varying NULL,
+appref character varying NULL,
+modelline character varying NULL,
+scoredate date NULL,
+nextcheck date NULL,
+dataqscore numeric NULL,
+confscore numeric NULL,
+overridestat USER-DEFINED NULL,
+overridenote USER-DEFINED NULL,
+decidestat USER-DEFINED NULL,
+decidedate date NULL,
+agespan smallint NULL,
+gendlabel USER-DEFINED NULL,
+maritalform USER-DEFINED NULL,
+depcount smallint NULL,
+resdform USER-DEFINED NULL,
+addrstab smallint NULL,
+phonestab smallint NULL,
+emailstab character varying NULL,
+clientseg USER-DEFINED NULL,
+tenureyrs smallint NULL,
+crossratio numeric NULL,
+profitscore numeric NULL,
+churnrate numeric NULL,
+    PRIMARY KEY (coreregistry)
+);
+
+First 3 rows:
+coreregistry    timemark                    clientref    appref    modelline    scoredate    nextcheck      dataqscore    confscore  overridestat    overridenote         decidestat    decidedate      agespan  gendlabel    maritalform      depcount  resdform      addrstab    phonestab    emailstab  clientseg      tenureyrs    crossratio    profitscore    churnrate
+--------------  --------------------------  -----------  --------  -----------  -----------  -----------  ------------  -----------  --------------  -------------------  ------------  ------------  ---------  -----------  -------------  ----------  ----------  ----------  -----------  -----------  -----------  -----------  ------------  -------------  -----------
+CS206405        2025-02-19 08:29:36.526509  CU338528     AP186206  v1.3         2025-02-19   2025-04-07          0.806        0.107  Policy          Policy Exception     Pending       2025-02-19           22  M            Widowed                 3  Temporary            0            8            0  Premium                1         0.604          0.154        0.763
+CS834424        2025-02-19 08:29:36.526509  CU209954     AP343846  v3.2         2025-02-19   2025-06-28          0.139        0.8                    Policy Exception     Rejected      2025-02-19           20  M            Single                  2  Permanent            5           11            2  Standard               0         0.625          0.923        0.185
+CS904970        2025-02-19 08:29:36.528191  CU314145     AP536324  v2.5         2025-02-19   2025-09-16          0.733        0.297  Manual          Management Decision  Pending       2025-02-19           47  M            Divorced                5  Permanent           18           13            7  Standard              24         0.802          0.335        0.179
+...
+
+
+CREATE TABLE "employment_and_income" (
+emplcoreref character varying NOT NULL,
+emplstat USER-DEFINED NULL,
+empllen smallint NULL,
+joblabel USER-DEFINED NULL,
+indsector USER-DEFINED NULL,
+employerref text NULL,
+annlincome numeric NULL,
+mthincome numeric NULL,
+incverify USER-DEFINED NULL,
+incstabscore real NULL,
+addincome numeric NULL,
+addincomesrc USER-DEFINED NULL,
+hshincome numeric NULL,
+emplstable smallint NULL,
+indrisklvl USER-DEFINED NULL,
+occrisklvl USER-DEFINED NULL,
+incsrcrisk USER-DEFINED NULL,
+georisk USER-DEFINED NULL,
+demrisk USER-DEFINED NULL,
+edulevel USER-DEFINED NULL,
+debincratio numeric NULL,
+    PRIMARY KEY (emplcoreref),
+    FOREIGN KEY (emplcoreref) REFERENCES core_record(coreregistry)
+);
+
+First 3 rows:
+emplcoreref    emplstat         empllen  joblabel    indsector    employerref               annlincome    mthincome  incverify      incstabscore    addincome  addincomesrc      hshincome    emplstable  indrisklvl    occrisklvl    incsrcrisk    georisk    demrisk    edulevel       debincratio
+-------------  -------------  ---------  ----------  -----------  ----------------------  ------------  -----------  -----------  --------------  -----------  --------------  -----------  ------------  ------------  ------------  ------------  ---------  ---------  -----------  -------------
+CS206405       Self-employed          7  Manager     Education    Smith and Sons                 78771      6564.25  Pending               0.55         11060  Investment           771132            11  Low           Medium        Low           Low        Low        Doctorate            0.199
+CS834424       Employed              13  Teacher     Other        Fowler, Huff and Owens        406027     33835.6   Pending               0.377        12660  Investment           106733             4  Medium        Medium        Medium        Low        Low        High School          0.506
+CS904970       Unemployed            33  Manager     Other        Young Group                   224253     18687.8   Verified              0.698        29818  Rental               196410            16  Low           High          Medium        Low        High       High School          0.308
+...
+
+
+CREATE TABLE "expenses_and_assets" (
+expemplref character varying NOT NULL,
+mthexp numeric NULL,
+fixexpratio numeric NULL,
+discexpratio numeric NULL,
+savamount numeric NULL,
+investamt numeric NULL,
+liqassets numeric NULL,
+totassets numeric NULL,
+totliabs numeric NULL,
+networth numeric NULL,
+vehown USER-DEFINED NULL,
+vehvalue numeric NULL,
+bankacccount smallint NULL,
+bankaccage smallint NULL,
+bankaccbal numeric NULL,
+propfinancialdata jsonb NULL,
+    PRIMARY KEY (expemplref),
+    FOREIGN KEY (expemplref) REFERENCES employment_and_income(emplcoreref)
+);
+
+First 3 rows:
+expemplref      mthexp    fixexpratio    discexpratio    savamount    investamt    liqassets         totassets    totliabs           networth  vehown      vehvalue    bankacccount    bankaccage    bankaccbal  propfinancialdata
+------------  --------  -------------  --------------  -----------  -----------  -----------  ----------------  ----------  -----------------  --------  ----------  --------------  ------------  ------------  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CS252516          9600          0.2             0.415       188526       285627       172739  277451                450724  -448621                           57573               4            10          8394  {'propown': 'Living with Parents', 'proptype': None, 'propvalue': 615904.0, 'rentpayhist': 'Good', 'mortgagebits': {'mortbalance': 1148577.0, 'mortpayhist': 'Fair'}}
+CS891919          2291          0.746           0.474       340293       377119       284607       1.19067e+06      411616   910773            Lease          95198               2            12          7295  {'propown': 'Living with Parents', 'proptype': 'Apartment', 'propvalue': 1201841.0, 'rentpayhist': 'Fair', 'mortgagebits': {'mortbalance': 450289.0, 'mortpayhist': 'Poor'}}
+CS765007          1218          0.389           0.205       200459       698147        50319       1.07972e+06      137420        1.24257e+06                 32878               4            11         21542  {'propown': 'Living with Parents', 'proptype': 'Condo', 'propvalue': 339977.0, 'rentpayhist': 'Poor', 'mortgagebits': {'mortbalance': 4809.0, 'mortpayhist': 'Fair'}}
+...
+
+
+CREATE TABLE "bank_and_transactions" (
+bankexpref character varying NOT NULL,
+banktxfreq USER-DEFINED NULL,
+banktxamt numeric NULL,
+bankrelscore numeric NULL,
+ovrfreq USER-DEFINED NULL,
+bouncecount smallint NULL,
+inscoverage USER-DEFINED NULL,
+lifeinsval numeric NULL,
+hlthinsstat USER-DEFINED NULL,
+fraudrisk numeric NULL,
+idverscore numeric NULL,
+docverstat USER-DEFINED NULL,
+kycstat USER-DEFINED NULL,
+amlresult USER-DEFINED NULL,
+chaninvdatablock jsonb NULL,
+    PRIMARY KEY (bankexpref),
+    FOREIGN KEY (bankexpref) REFERENCES expenses_and_assets(expemplref)
+);
+
+First 3 rows:
+bankexpref    banktxfreq      banktxamt    bankrelscore  ovrfreq       bouncecount  inscoverage      lifeinsval  hlthinsstat      fraudrisk    idverscore  docverstat    kycstat    amlresult    chaninvdatablock
+------------  ------------  -----------  --------------  ----------  -------------  -------------  ------------  -------------  -----------  ------------  ------------  ---------  -----------  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CS893515      High                 3441           0.158  Rare                    9  Basic                973494  Premium              0.372         0.227  Failed        Failed     Flag         {'autopay': 'Yes', 'depostat': 'No', 'mobileuse': 'High', 'onlineuse': 'High', 'invcluster': {'tradeact': 'High', 'investexp': 'Moderate', 'investport': 'Moderate'}}
+CS986753      Medium               4667           0.603  Occasional              9  Comprehensive         31201  Basic                0.43          0.528  Failed        Failed     Pass         {'autopay': 'No', 'depostat': 'Yes', 'mobileuse': 'Medium', 'onlineuse': 'High', 'invcluster': {'tradeact': None, 'investexp': 'Extensive', 'investport': None}}
+CS414493      Low                  4675           0.984  Never                   7  Basic                459259  Basic                0.893         0.21   Pending       Failed     Pass         {'autopay': 'Yes', 'depostat': 'Yes', 'mobileuse': 'High', 'onlineuse': 'High', 'invcluster': {'tradeact': 'High', 'investexp': 'Moderate', 'investport': None}}
+...
+
+
+CREATE TABLE "credit_and_compliance" (
+compbankref character varying NOT NULL,
+sancresult USER-DEFINED NULL,
+pepresult USER-DEFINED NULL,
+legalstat USER-DEFINED NULL,
+regcompliance USER-DEFINED NULL,
+credscore smallint NULL,
+risklev USER-DEFINED NULL,
+defhist USER-DEFINED NULL,
+delinqcount smallint NULL,
+latepaycount smallint NULL,
+collacc integer NULL,
+choffs smallint NULL,
+bankr smallint NULL,
+taxlien smallint NULL,
+civiljudge smallint NULL,
+credinq smallint NULL,
+hardinq smallint NULL,
+softinq smallint NULL,
+credrepdisp character varying NULL,
+credageyrs smallint NULL,
+oldaccage smallint NULL,
+    PRIMARY KEY (compbankref),
+    FOREIGN KEY (compbankref) REFERENCES bank_and_transactions(bankexpref)
+);
+
+First 3 rows:
+compbankref    sancresult    pepresult    legalstat     regcompliance      credscore  risklev    defhist      delinqcount    latepaycount    collacc    choffs    bankr    taxlien    civiljudge    credinq    hardinq    softinq    credrepdisp    credageyrs    oldaccage
+-------------  ------------  -----------  ------------  ---------------  -----------  ---------  ---------  -------------  --------------  ---------  --------  -------  ---------  ------------  ---------  ---------  ---------  -------------  ------------  -----------
+CS206405       Fail          Flag         Clear         Non-compliant            423  High       Current                7               3          1         1        1          1             2         13          1         15              0            28           27
+CS834424       Fail          Pass         Under Review  Non-compliant            379  Medium     Past                   7              13          0         2        1          1             2          0         10         17              3             0            8
+CS904970       Fail          Fail         Clear         Compliant                645  High       Past                   3               5          3         3        0          1             0          7          7          6              3             7            6
+...
+
+
+CREATE TABLE "credit_accounts_and_history" (
+histcompref character varying NOT NULL,
+newaccage smallint NULL,
+avgaccage numeric NULL,
+accmixscore numeric NULL,
+credlimusage numeric NULL,
+payconsist numeric NULL,
+recentbeh USER-DEFINED NULL,
+seekbeh USER-DEFINED NULL,
+cardcount smallint NULL,
+totcredlimit numeric NULL,
+credutil numeric NULL,
+cardpayhist USER-DEFINED NULL,
+loancount smallint NULL,
+activeloan smallint NULL,
+totloanamt bigint NULL,
+loanpayhist USER-DEFINED NULL,
+custservint smallint NULL,
+complainthist USER-DEFINED NULL,
+produsescore numeric NULL,
+chanusescore numeric NULL,
+custlifeval numeric NULL,
+    PRIMARY KEY (histcompref),
+    FOREIGN KEY (histcompref) REFERENCES credit_and_compliance(compbankref)
+);
+
+First 3 rows:
+histcompref      newaccage    avgaccage    accmixscore    credlimusage    payconsist  recentbeh    seekbeh      cardcount    totcredlimit    credutil  cardpayhist      loancount    activeloan    totloanamt  loanpayhist      custservint  complainthist      produsescore    chanusescore    custlifeval
+-------------  -----------  -----------  -------------  --------------  ------------  -----------  ---------  -----------  --------------  ----------  -------------  -----------  ------------  ------------  -------------  -------------  ---------------  --------------  --------------  -------------
+CS206405                 5          7.6          0.914           0.681         0.187  Stable       High                 3          114447       0.402  Poor                     3             3        189402  Poor                       6  Low                       0.263           0.544       26262.2
+CS834424                 4          2.4          0.48            0.297         0.031  Improving    High                10           50628       0.062  Fair                     3             3        373422  Good                       3                            0.308           0.575        9298.56
+CS904970                 5          9.3          0.647           0.608         0.832  Stable       High                10           45409       0.712  Good                     4             3        107132  Fair                       1                            0.068           0.563       15220.6
+...

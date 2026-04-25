@@ -16,16 +16,25 @@ OPENAI_API_KEY is loaded from the .env file at the repo root.
 import argparse
 import json
 import os
-import re
+import subprocess
 import sys
+from datetime import date, datetime
 from pathlib import Path
 from dotenv import load_dotenv
+import psycopg2
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 DATA_DIR = Path(__file__).parent.parent / "bird-interact-lite-data"
 GT_FILE = Path(__file__).parent.parent / "GT-stuff" / "bird_interact_gt_kg_testcases_1008.jsonl"
 TASKS_FILE = DATA_DIR / "bird_interact_data.jsonl"
+
+DB_CONFIG = {
+    "host": "localhost",
+    "port": 5432,
+    "user": "root",
+    "password": "123123",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -52,12 +61,12 @@ def load_tasks() -> list[dict]:
     return tasks
 
 
-def load_gt() -> dict[str, str]:
+def load_gt() -> dict[str, dict]:
     """
-    Reads the ground truth file (bird_interact_gt_kg_testcases_1008.jsonl).
-    The public dataset intentionally ships without correct SQL answers —
-    those are kept separately so the benchmark can't be gamed.
-    Returns a dict mapping {instance_id -> ground_truth_sql_string}.
+    Reads the ground truth file. Returns a dict mapping:
+      instance_id -> {"sol_sql": str, "test_cases": list[str]}
+    test_cases is a list of Python function strings for management tasks,
+    empty list for pure query tasks.
     """
     gt = {}
     with open(GT_FILE) as f:
@@ -66,7 +75,10 @@ def load_gt() -> dict[str, str]:
             if line:
                 r = json.loads(line)
                 sql_list = r.get("sol_sql", [])
-                gt[r["instance_id"]] = sql_list[0] if sql_list else ""
+                gt[r["instance_id"]] = {
+                    "sol_sql": sql_list[0] if sql_list else "",
+                    "test_cases": r.get("test_cases", []),
+                }
     return gt
 
 
@@ -298,32 +310,105 @@ def step3_generate(
 
 
 # ---------------------------------------------------------------------------
-# Comparison
+# Comparison via database execution
 # ---------------------------------------------------------------------------
 
-def normalize_sql(sql: str) -> str:
+def preprocess_results(results: list) -> list[tuple]:
     """
-    Strips comments, collapses whitespace, and lowercases SQL before comparing.
-    This avoids false negatives from trivial formatting differences like extra
-    spaces, inline comments, or different casing on keywords.
+    Mirrors bird_interact_agent test_utils.preprocess_results:
+    normalizes dates to YYYY-MM-DD strings and converts rows to tuples.
     """
-    sql = re.sub(r"/\*.*?\*/", "", sql, flags=re.DOTALL)  # remove block comments
-    sql = re.sub(r"--[^\n]*", "", sql)                     # remove line comments
-    sql = " ".join(sql.split())                            # collapse whitespace
-    return sql.lower().strip()
+    processed = []
+    for row in results:
+        new_row = []
+        for item in row:
+            if isinstance(item, (date, datetime)):
+                new_row.append(item.strftime("%Y-%m-%d"))
+            else:
+                new_row.append(item)
+        processed.append(tuple(new_row))
+    return processed
 
 
-def compare(pred: str, gold: str) -> bool:
-    """
-    Compares predicted SQL against ground truth after normalization.
-    Returns True only if they are character-for-character identical after cleanup.
+def execute_sql(sql: str, conn) -> list | None:
+    """Runs a single SQL query on conn and returns rows, or None on error."""
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SET statement_timeout = '60s';")
+        cursor.execute(sql)
+        conn.commit()
+        lower = sql.strip().lower()
+        if lower.startswith("select") or lower.startswith("with"):
+            rows = cursor.fetchmany(10001)
+            return rows[:10000] if len(rows) > 10000 else rows
+        return cursor.fetchall()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
 
-    Note: this is strict. A query that produces the correct result but uses
-    different syntax (e.g. a subquery vs CTE) will still fail here.
-    Accurate evaluation requires executing both queries and comparing result sets,
-    which needs a live database.
+
+def execute_queries(sql: str, db_name: str, conn):
+    """Wrapper used by exec'd test case functions. Returns (rows, error, timeout)."""
+    try:
+        return execute_sql(sql, conn), False, False
+    except Exception as e:
+        return None, str(e), False
+
+
+def reset_db(db_name: str):
+    """Drops db_name and recreates it from {db_name}_template, restoring original state."""
+    env = os.environ.copy()
+    env["PGPASSWORD"] = DB_CONFIG["password"]
+    h, p, u = DB_CONFIG["host"], str(DB_CONFIG["port"]), DB_CONFIG["user"]
+    template = f"{db_name}_template"
+
+    subprocess.run(
+        ["psql", "-h", h, "-p", p, "-U", u, "-d", "postgres", "-c",
+         f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid();"],
+        env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["dropdb", "--if-exists", "-h", h, "-p", p, "-U", u, db_name],
+        env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["createdb", "-h", h, "-p", p, "-U", u, db_name, "--template", template],
+        check=True, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def compare(pred: str, gold: str, test_cases: list, db_name: str, conn) -> bool:
     """
-    return normalize_sql(pred) == normalize_sql(gold)
+    For query tasks (no test_cases): execute both SQLs and compare result sets.
+    For management tasks (test_cases present): execute predicted SQL then run
+    each test case Python function to verify the DB state, mirroring the real eval.
+    """
+    if not test_cases:
+        try:
+            pred_rows = execute_sql(pred, conn)
+            gold_rows = execute_sql(gold, conn)
+        except Exception:
+            return False
+        if pred_rows is None or gold_rows is None:
+            return False
+        pred_rows = preprocess_results(pred_rows)
+        gold_rows = preprocess_results(gold_rows)
+        return set(pred_rows) == set(gold_rows)
+    else:
+        try:
+            execute_sql(pred, conn)
+        except Exception:
+            return False
+        for tc_str in test_cases:
+            try:
+                namespace = {"execute_queries": execute_queries}
+                exec(tc_str, namespace)
+                namespace["test_case"]([pred], [gold], db_name, conn)
+            except Exception:
+                return False
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -358,6 +443,7 @@ def main():
     print(f"  → {len(gt)} ground truth entries loaded")
 
     db_cache: dict[str, tuple] = {}
+    conn_cache: dict[str, object] = {}
     results = []
     exact_matches = 0
 
@@ -368,21 +454,25 @@ def main():
         instance_id = task["instance_id"]
         db = task["selected_database"]
         query = task["amb_user_query"]
-        sol_sql = gt.get(instance_id, "")
+        gt_entry = gt.get(instance_id, {"sol_sql": "", "test_cases": []})
+        sol_sql = gt_entry["sol_sql"]
+        test_cases = gt_entry["test_cases"]
 
         print(f"\n{'─' * 60}")
         print(f"  TASK {i+1}/{len(tasks)}  |  {instance_id}  |  database: {db}")
         print(f"{'─' * 60}")
         print(f"  User query: {query}")
 
-        # Load DB files the first time we see this database, then reuse from cache
+        # Load DB files and open a connection the first time we see this database
         if db not in db_cache:
             print(f"\n  [DB] Loading schema, column meanings, and KB for '{db}' ...")
             db_cache[db] = load_db_context(db)
             schema, col_text, kb = db_cache[db]
             print(f"       {len(kb)} KB entries available")
+            conn_cache[db] = psycopg2.connect(dbname=db, **DB_CONFIG)
         else:
             schema, col_text, kb = db_cache[db]
+        conn = conn_cache[db]
 
         # Some KB entries are intentionally hidden per task (deleted_knowledge)
         exclude_ids = [item["deleted_knowledge"] for item in task.get("knowledge_ambiguity", [])]
@@ -430,9 +520,18 @@ def main():
             continue
 
         # --- Comparison ---
-        match = compare(predicted_sql, sol_sql)
+        match = compare(predicted_sql, sol_sql, test_cases, db, conn)
         if match:
             exact_matches += 1
+
+        # Management tasks mutate the DB — reset to template state before next task
+        if test_cases:
+            print(f"\n  [DB] Resetting '{db}' to original state ...")
+            conn.close()
+            del conn_cache[db]
+            reset_db(db)
+            conn_cache[db] = psycopg2.connect(dbname=db, **DB_CONFIG)
+            conn = conn_cache[db]
 
         print(f"\n  Ground truth SQL:")
         print(f"  {sol_sql[:200]}{'...' if len(sol_sql) > 200 else ''}")
@@ -466,9 +565,6 @@ def main():
     print(f"  Exact matches:    {exact_matches}")
     print(f"  Accuracy:         {accuracy:.1f}%")
     print(f"  Results saved to: {args.output}")
-    print(f"\n  Note: exact match is very strict — two queries that produce the")
-    print(f"  same result rows but differ in syntax will both count as failures.")
-    print(f"  Accurate scoring requires executing SQL against a live database.")
     print(f"{'=' * 60}\n")
 
 

@@ -16,9 +16,11 @@ OPENAI_API_KEY is loaded from the .env file at the repo root.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date, datetime
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from dotenv import load_dotenv
 import psycopg2
@@ -35,6 +37,51 @@ DB_CONFIG = {
     "user": "root",
     "password": "123123",
 }
+
+# ---------------------------------------------------------------------------
+# Logprobs JSONL logging
+# ---------------------------------------------------------------------------
+
+# Each entry written to the logprobs file is one LLM call:
+# {instance_id, step, call_idx, model, input_tokens, output_tokens,
+#  input: [...messages], output: "...", token_logprobs: [{token, logprob}, ...]}
+
+_lp_ctx: dict = {"instance_id": None, "task_type": None, "file": None, "call_idx": 0}
+
+
+def init_logprobs_jsonl(path: str, append: bool = False) -> None:
+    _lp_ctx["file"] = open(path, "a" if append else "w")
+
+
+# ---------------------------------------------------------------------------
+# Row serialization helpers
+# ---------------------------------------------------------------------------
+
+def _safe_val(v):
+    if isinstance(v, (date, datetime)):
+        return v.strftime("%Y-%m-%d")
+    if isinstance(v, Decimal):
+        return float(v)
+    return v
+
+
+def serialize_rows(rows, max_rows: int = 20) -> list | None:
+    if rows is None:
+        return None
+    return [[_safe_val(v) for v in row] for row in rows[:max_rows]]
+
+
+def format_rows(rows, max_rows: int = 10) -> str:
+    if rows is None:
+        return "  (execution error)"
+    if not rows:
+        return "  (no rows returned)"
+    lines = []
+    for row in rows[:max_rows]:
+        lines.append("  " + " | ".join(str(_safe_val(v)) for v in row))
+    if len(rows) > max_rows:
+        lines.append(f"  ... ({len(rows) - max_rows} more rows)")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -132,20 +179,38 @@ def build_kb_text(kb: list[dict], exclude_ids: list[int]) -> str:
 # LLM call
 # ---------------------------------------------------------------------------
 
-def call_llm(messages: list[dict]) -> str:
+def call_llm(messages: list[dict], step: str = "unknown") -> str:
     """
-    Makes a single call to GPT-4o-mini with the given message list and returns
-    the model's response as a plain string.
-    Temperature is set to 0 for deterministic, consistent outputs.
+    Makes a single call to GPT-4o-mini. If a logprobs file is open, writes one
+    JSONL entry per call with the full input, output, and per-token logprobs.
     """
     from openai import OpenAI
     client = OpenAI()
+    use_logprobs = _lp_ctx["file"] is not None
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
         temperature=0,
+        logprobs=use_logprobs,
     )
-    return response.choices[0].message.content.strip()
+    content = response.choices[0].message.content.strip()
+    if use_logprobs:
+        lp_content = response.choices[0].logprobs.content if response.choices[0].logprobs else []
+        _lp_ctx["file"].write(json.dumps({
+            "instance_id": _lp_ctx["instance_id"] or "",
+            "task_type": _lp_ctx["task_type"] or "",
+            "step": step,
+            "call_idx": _lp_ctx["call_idx"],
+            "model": response.model,
+            "input_tokens": response.usage.prompt_tokens,
+            "output_tokens": response.usage.completion_tokens,
+            "input": messages,
+            "output": content,
+            "token_logprobs": [{"token": t.token, "logprob": t.logprob} for t in lp_content],
+        }) + "\n")
+        _lp_ctx["file"].flush()
+        _lp_ctx["call_idx"] += 1
+    return content
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +252,7 @@ def step1_explore(query: str, schema: str, col_text: str, kb_text: str) -> str:
                 "Which tables/columns are relevant, and what terms need clarification?"
             ),
         },
-    ])
+    ], step="explore")
 
 
 def step2_clarify(
@@ -233,7 +298,7 @@ def step2_clarify(
                 "Ask one clarifying question:"
             ),
         },
-    ])
+    ], step="clarify_question")
 
     # --- Call 2b: user simulator answers using real ambiguity data ---
     answer = call_llm([
@@ -256,7 +321,7 @@ def step2_clarify(
                 "Answer their question clearly and specifically:"
             ),
         },
-    ])
+    ], step="clarify_answer")
 
     return question, answer
 
@@ -306,28 +371,12 @@ def step3_generate(
                 "Write the SQL query:"
             ),
         },
-    ])
+    ], step="generate")
 
 
 # ---------------------------------------------------------------------------
 # Comparison via database execution
 # ---------------------------------------------------------------------------
-
-def preprocess_results(results: list) -> list[tuple]:
-    """
-    Mirrors bird_interact_agent test_utils.preprocess_results:
-    normalizes dates to YYYY-MM-DD strings and converts rows to tuples.
-    """
-    processed = []
-    for row in results:
-        new_row = []
-        for item in row:
-            if isinstance(item, (date, datetime)):
-                new_row.append(item.strftime("%Y-%m-%d"))
-            else:
-                new_row.append(item)
-        processed.append(tuple(new_row))
-    return processed
 
 
 def execute_sql(sql: str, conn) -> list | None:
@@ -337,11 +386,10 @@ def execute_sql(sql: str, conn) -> list | None:
         cursor.execute("SET statement_timeout = '60s';")
         cursor.execute(sql)
         conn.commit()
-        lower = sql.strip().lower()
-        if lower.startswith("select") or lower.startswith("with"):
-            rows = cursor.fetchmany(10001)
-            return rows[:10000] if len(rows) > 10000 else rows
-        return cursor.fetchall()
+        if cursor.description is None:
+            return []
+        rows = cursor.fetchmany(10001)
+        return rows[:10000] if len(rows) > 10000 else rows
     except Exception as e:
         conn.rollback()
         raise e
@@ -379,36 +427,109 @@ def reset_db(db_name: str):
     )
 
 
-def compare(pred: str, gold: str, test_cases: list, db_name: str, conn) -> bool:
+def _preprocess_sql(sql: str) -> str:
+    """Strip comments, DISTINCT, and ROUND() — mirroring the real BIRD-Interact eval.
+    ORDER BY is intentionally NOT stripped; set-based comparison handles it instead."""
+    # Remove block comments /* ... */
+    sql = re.sub(r'/\*.*?\*/', '', sql, flags=re.DOTALL)
+    # Remove line comments -- ...
+    sql = re.sub(r'--.*?(\r\n|\r|\n)', r'\1', sql)
+    # Remove DISTINCT
+    sql = ' '.join(t for t in sql.split() if t.lower() != 'distinct')
+    # Remove ROUND(..., n) keeping the inner expression
+    def _strip_round(s):
+        pat = re.compile(r'ROUND\s*\(', re.IGNORECASE)
+        while True:
+            m = pat.search(s)
+            if not m:
+                break
+            depth, i = 0, m.end() - 1
+            first_arg_end = None
+            for j in range(i, len(s)):
+                if s[j] == '(':
+                    depth += 1
+                elif s[j] == ')':
+                    depth -= 1
+                    if depth == 0:
+                        close = j
+                        break
+                elif s[j] == ',' and depth == 1:
+                    first_arg_end = j
+            end = first_arg_end if first_arg_end is not None else close
+            s = s[:m.start()] + s[i + 1:end].strip() + s[close + 1:]
+        return s
+    sql = _strip_round(sql)
+    return re.sub(r'\s+', ' ', sql).strip()
+
+
+def _normalize_rows(rows, decimal_places: int = 2) -> list[tuple]:
+    """Normalize dates, round floats/Decimals, convert unhashable types to strings."""
+    quantizer = Decimal(1).scaleb(-decimal_places)
+    out = []
+    for row in rows:
+        new_row = []
+        for v in row:
+            if isinstance(v, (date, datetime)):
+                new_row.append(v.strftime('%Y-%m-%d'))
+            elif isinstance(v, Decimal):
+                new_row.append(v.quantize(quantizer, rounding=ROUND_HALF_UP))
+            elif isinstance(v, float):
+                new_row.append(round(v, decimal_places))
+            elif isinstance(v, (dict, list)):
+                new_row.append(json.dumps(v, sort_keys=True))
+            else:
+                new_row.append(v)
+        out.append(tuple(new_row))
+    return out
+
+
+def compare(
+    pred: str, gold: str, test_cases: list, db_name: str, conn
+) -> tuple[bool, dict, dict]:
     """
     For query tasks (no test_cases): execute both SQLs and compare result sets.
     For management tasks (test_cases present): execute predicted SQL then run
     each test case Python function to verify the DB state, mirroring the real eval.
+
+    Returns (match, pred_exec, gold_exec) where each exec dict has "rows" and "error".
     """
+    pred_exec: dict = {"rows": None, "error": None}
+    gold_exec: dict = {"rows": None, "error": None}
+
     if not test_cases:
         try:
-            pred_rows = execute_sql(pred, conn)
-            gold_rows = execute_sql(gold, conn)
-        except Exception:
-            return False
-        if pred_rows is None or gold_rows is None:
-            return False
-        pred_rows = preprocess_results(pred_rows)
-        gold_rows = preprocess_results(gold_rows)
-        return set(pred_rows) == set(gold_rows)
+            pred_exec["rows"] = execute_sql(_preprocess_sql(pred), conn)
+        except Exception as e:
+            pred_exec["error"] = str(e)
+        try:
+            gold_exec["rows"] = execute_sql(_preprocess_sql(gold), conn)
+        except Exception as e:
+            gold_exec["error"] = str(e)
+
+        if pred_exec["error"] or gold_exec["error"]:
+            return False, pred_exec, gold_exec
+        if pred_exec["rows"] is None or gold_exec["rows"] is None:
+            return False, pred_exec, gold_exec
+
+        return (
+            set(_normalize_rows(pred_exec["rows"])) == set(_normalize_rows(gold_exec["rows"])),
+            pred_exec,
+            gold_exec,
+        )
     else:
         try:
             execute_sql(pred, conn)
-        except Exception:
-            return False
+        except Exception as e:
+            pred_exec["error"] = str(e)
+            return False, pred_exec, gold_exec
         for tc_str in test_cases:
             try:
                 namespace = {"execute_queries": execute_queries}
                 exec(tc_str, namespace)
                 namespace["test_case"]([pred], [gold], db_name, conn)
-            except Exception:
-                return False
-        return True
+            except Exception as e:
+                return False, pred_exec, gold_exec
+        return True, pred_exec, gold_exec
 
 
 # ---------------------------------------------------------------------------
@@ -418,11 +539,37 @@ def compare(pred: str, gold: str, test_cases: list, db_name: str, conn) -> bool:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=None, help="Only run first N tasks")
+    parser.add_argument("--sample", type=int, default=None, help="Pick N tasks spread across different databases (round-robin)")
     parser.add_argument("--output", default="results.jsonl")
+    parser.add_argument(
+        "--logprobs", default=None, metavar="FILE",
+        help="If set, write full input/output/token logprobs to this JSONL file",
+    )
+    parser.add_argument(
+        "--task-type", default="all", choices=["all", "select", "management"],
+        help="Filter tasks: 'select' (no test_cases), 'management' (has test_cases), or 'all'",
+    )
+    parser.add_argument(
+        "--pause", action="store_true",
+        help="Pause after each task's SQL executes (before DB reset) so you can inspect the DB",
+    )
+    parser.add_argument(
+        "--append", action="store_true",
+        help="Append to output and logprobs files instead of overwriting",
+    )
+    parser.add_argument(
+        "--database", default=None, metavar="DB",
+        help="Only run tasks from this database (e.g. 'gaming')",
+    )
     args = parser.parse_args()
 
     if not os.environ.get("OPENAI_API_KEY"):
         sys.exit("Error: OPENAI_API_KEY not found. Add it to the .env file at the repo root.")
+
+    if args.logprobs:
+        init_logprobs_jsonl(args.logprobs, append=args.append)
+        mode = "Appending to" if args.append else "Writing"
+        print(f"\n[LOGPROBS] {mode} full input/output/token logprobs to {args.logprobs}")
 
     # ------------------------------------------------------------------
     # Setup
@@ -434,13 +581,42 @@ def main():
 
     print("\n[SETUP] Loading tasks from bird_interact_data.jsonl ...")
     tasks = load_tasks()
-    if args.limit:
-        tasks = tasks[: args.limit]
-    print(f"  → {len(tasks)} tasks loaded")
 
     print("\n[SETUP] Loading ground truth SQL answers ...")
     gt = load_gt()
     print(f"  → {len(gt)} ground truth entries loaded")
+
+    if args.task_type != "all":
+        before = len(tasks)
+        if args.task_type == "select":
+            tasks = [t for t in tasks if not gt.get(t["instance_id"], {}).get("test_cases")]
+        else:
+            tasks = [t for t in tasks if gt.get(t["instance_id"], {}).get("test_cases")]
+        print(f"  → filtered to {len(tasks)} '{args.task_type}' tasks (from {before})")
+
+    if args.database:
+        before = len(tasks)
+        tasks = [t for t in tasks if t["selected_database"] == args.database]
+        print(f"  → filtered to {len(tasks)} tasks for database '{args.database}' (from {before})")
+
+    if args.sample:
+        from collections import defaultdict
+        by_db: dict[str, list] = defaultdict(list)
+        for t in tasks:
+            by_db[t["selected_database"]].append(t)
+        sampled, db_order, idx = [], list(by_db.keys()), 0
+        while len(sampled) < args.sample:
+            db = db_order[idx % len(db_order)]
+            if by_db[db]:
+                sampled.append(by_db[db].pop(0))
+            idx += 1
+            if idx > args.sample * len(db_order):
+                break
+        tasks = sampled
+        print(f"  → sampled {len(tasks)} tasks across {len(set(t['selected_database'] for t in tasks))} databases")
+    elif args.limit:
+        tasks = tasks[: args.limit]
+    print(f"  → {len(tasks)} tasks to run")
 
     db_cache: dict[str, tuple] = {}
     conn_cache: dict[str, object] = {}
@@ -457,6 +633,10 @@ def main():
         gt_entry = gt.get(instance_id, {"sol_sql": "", "test_cases": []})
         sol_sql = gt_entry["sol_sql"]
         test_cases = gt_entry["test_cases"]
+
+        _lp_ctx["instance_id"] = instance_id
+        task_type = "management" if test_cases else "select"
+        _lp_ctx["task_type"] = task_type
 
         print(f"\n{'─' * 60}")
         print(f"  TASK {i+1}/{len(tasks)}  |  {instance_id}  |  database: {db}")
@@ -503,13 +683,12 @@ def main():
             # --- Step 3 ---
             print(f"\n  [STEP 3 / GENERATE] Agent writing final SQL with full context ...")
             predicted_sql = step3_generate(query, schema, col_text, kb_text, exploration, question, answer)
-            print(f"\n  Predicted SQL:")
-            print(f"  {predicted_sql}")
 
         except Exception as e:
             print(f"\n  [ERROR] {e}")
             results.append({
                 "instance_id": instance_id,
+                "task_type": task_type,
                 "database": db,
                 "user_query": query,
                 "predicted_sql": "",
@@ -520,12 +699,14 @@ def main():
             continue
 
         # --- Comparison ---
-        match = compare(predicted_sql, sol_sql, test_cases, db, conn)
+        match, pred_exec, gold_exec = compare(predicted_sql, sol_sql, test_cases, db, conn)
         if match:
             exact_matches += 1
 
         # Management tasks mutate the DB — reset to template state before next task
         if test_cases:
+            if args.pause:
+                input(f"\n  [PAUSE] DB '{db}' has been modified. Inspect it now, then press Enter to reset...")
             print(f"\n  [DB] Resetting '{db}' to original state ...")
             conn.close()
             del conn_cache[db]
@@ -533,26 +714,46 @@ def main():
             conn_cache[db] = psycopg2.connect(dbname=db, **DB_CONFIG)
             conn = conn_cache[db]
 
+        print(f"\n  Predicted SQL:")
+        print(f"  {predicted_sql}")
+        if pred_exec["error"]:
+            print(f"\n  Predicted SQL result: ERROR — {pred_exec['error']}")
+        else:
+            print(f"\n  Predicted SQL result ({len(pred_exec['rows'] or [])} rows):")
+            print(format_rows(pred_exec["rows"]))
+
         print(f"\n  Ground truth SQL:")
-        print(f"  {sol_sql[:200]}{'...' if len(sol_sql) > 200 else ''}")
+        print(f"  {sol_sql}")
+        if not test_cases:
+            if gold_exec["error"]:
+                print(f"\n  Ground truth SQL result: ERROR — {gold_exec['error']}")
+            else:
+                print(f"\n  Ground truth SQL result ({len(gold_exec['rows'] or [])} rows):")
+                print(format_rows(gold_exec["rows"]))
+
         print(f"\n  Exact match: {'✓ PASS' if match else '✗ FAIL'}")
 
         results.append({
             "instance_id": instance_id,
+            "task_type": task_type,
             "database": db,
             "user_query": query,
             "exploration": exploration,
             "clarifying_question": question,
             "user_answer": answer,
             "predicted_sql": predicted_sql,
+            "predicted_sql_rows": serialize_rows(pred_exec["rows"]),
+            "predicted_sql_error": pred_exec["error"],
             "ground_truth_sql": sol_sql,
+            "ground_truth_sql_rows": serialize_rows(gold_exec["rows"]),
+            "ground_truth_sql_error": gold_exec["error"],
             "exact_match": match,
         })
 
     # ------------------------------------------------------------------
     # Summary
     # ------------------------------------------------------------------
-    with open(args.output, "w") as f:
+    with open(args.output, "a" if args.append else "w") as f:
         for r in results:
             f.write(json.dumps(r) + "\n")
 
@@ -565,7 +766,13 @@ def main():
     print(f"  Exact matches:    {exact_matches}")
     print(f"  Accuracy:         {accuracy:.1f}%")
     print(f"  Results saved to: {args.output}")
+    if args.logprobs:
+        print(f"  Logprobs saved to: {args.logprobs}")
     print(f"{'=' * 60}\n")
+
+    if _lp_ctx["file"]:
+        _lp_ctx["file"].close()
+        _lp_ctx["file"] = None
 
 
 if __name__ == "__main__":
